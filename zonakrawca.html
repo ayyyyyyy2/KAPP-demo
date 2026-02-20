@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Żona Krawca - Vendor Page</title>
+    <link rel="stylesheet" href="zonakrawca.css">
+</head>
+<body>
+    <!-- Back button -->
+    <button class="back-btn" onclick="goBackToVendors()">← Back to Vendors</button>
+    
+    <div class="zonakrawca-container">
+        <!-- Logo at top -->
+        <div class="logo-container">
+            <svg width="150" height="150" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <!-- Black background circle -->
+                <circle cx="100" cy="100" r="100" fill="#000000"/>
+                
+                <!-- ŻONA text -->
+                <text x="100" y="75" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">ŻONA</text>
+                
+                <!-- KRAWCA text -->
+                <text x="100" y="105" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">KRAWCA</text>
+                
+                <!-- Decorative elements -->
+                <line x1="40" y1="130" x2="160" y2="130" stroke="white" stroke-width="2"/>
+                
+                <!-- CUKIERNIA text -->
+                <text x="100" y="150" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="white" text-anchor="middle" letter-spacing="2px">CUKIERNIA</text>
+                
+                <!-- PIEKARNIA text -->
+                <text x="100" y="170" font-family="Arial, sans-serif" font-size="10" font-weight="normal" fill="white" text-anchor="middle" letter-spacing="1px">PIEKARNIA</text>
+            </svg>
+        </div>
+        
+        <!-- Title -->
+        <h1 class="zonakrawca-title">ŻONA KRAWCA</h1>
+        
+        <!-- Create Reward Button -->
+        <div class="action-container">
+            <button class="create-reward-btn" onclick="openCreateReward()">Create a Reward</button>
+        </div>
+        
+        <!-- Rewards Display Section -->
+        <div class="rewards-section">
+            <h2 class="rewards-title">Current Rewards</h2>
+            <div id="rewardsGrid" class="rewards-grid">
+                <!-- Rewards will be loaded here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Reward Modal -->
+    <div id="createRewardModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateReward()">&times;</span>
+            <h2>Create a Reward</h2>
+            <form id="createRewardForm" enctype="multipart/form-data">
+                <label for="rewardTitle">Title:</label>
+                <input type="text" id="rewardTitle" required>
+                
+                <label for="rewardDescription">Description:</label>
+                <textarea id="rewardDescription" required></textarea>
+                
+                <label for="rewardCost">Cost (Points):</label>
+                <input type="number" id="rewardCost" min="1" required>
+                
+                <label for="rewardImage">Image (JPG only):</label>
+                <input type="file" id="rewardImage" accept=".jpg,.jpeg" onchange="previewImage(event)">
+                
+                <div id="imagePreview" class="image-preview"></div>
+                
+                <button type="submit">Create Reward</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function goBackToVendors() {
+            window.location.href = '/all-vendors';
+        }
+        
+        function openCreateReward() {
+            document.getElementById('createRewardModal').style.display = 'block';
+        }
+        
+        function closeCreateReward() {
+            document.getElementById('createRewardModal').style.display = 'none';
+            document.getElementById('createRewardForm').reset();
+            document.getElementById('imagePreview').innerHTML = '';
+        }
+        
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px;">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
+            }
+        }
+        
+        // Load rewards for this vendor
+        async function loadVendorRewards() {
+            try {
+                const response = await fetch('/get-rewards/Żona Krawca');
+                const result = await response.json();
+                
+                const rewardsGrid = document.getElementById('rewardsGrid');
+                
+                if (result.success && result.rewards.length > 0) {
+                    rewardsGrid.innerHTML = result.rewards.map(reward => `
+                        <div class="reward-bubble ${reward.status === 'inactive' ? 'inactive-reward' : ''}" data-reward-id="${reward.reward_id}">
+                            ${reward.image_url ? `<img src="${reward.image_url}" alt="${reward.title}" class="reward-image">` : '<div class="no-image">📦</div>'}
+                            <div class="reward-content">
+                                <h3 class="reward-title">${reward.title}</h3>
+                                <p class="reward-description">${reward.description}</p>
+                                <div class="reward-details">
+                                    <span class="reward-cost">💰 ${reward.cost} points</span>
+                                    ${reward.status === 'active' ? 
+                                        `<button class="delete-btn" onclick="deleteReward('${reward.reward_id}')">🗑️ Delete</button>` :
+                                        `<button class="reactivate-btn" onclick="reactivateReward('${reward.reward_id}')">↩️ Put Back</button>`
+                                    }
+                                </div>
+                            </div>
+                            ${reward.status === 'inactive' ? '<div class="inactive-tape">INACTIVE</div>' : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    rewardsGrid.innerHTML = '<div class="no-rewards">No rewards for this vendor.</div>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading vendor rewards:', error);
+                document.getElementById('rewardsGrid').innerHTML = '<div class="error">Error loading rewards.</div>';
+            }
+        }
+        
+        // Delete (deactivate) reward
+        async function deleteReward(rewardId) {
+            try {
+                const response = await fetch('/deactivate-reward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reward_id: rewardId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Reward marked as inactive!');
+                    loadVendorRewards(); // Refresh the rewards list
+                } else {
+                    alert('Failed to deactivate reward: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error deactivating reward. Please try again.');
+            }
+        }
+        
+        // Reactivate reward
+        async function reactivateReward(rewardId) {
+            try {
+                const response = await fetch('/reactivate-reward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reward_id: rewardId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Reward reactivated successfully!');
+                    loadVendorRewards(); // Refresh the rewards list
+                } else {
+                    alert('Failed to reactivate reward: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error reactivating reward. Please try again.');
+            }
+        }
+        
+        document.getElementById('createRewardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const imageFile = document.getElementById('rewardImage').files[0];
+            
+            // Convert image to base64 if provided
+            let imageBase64 = null;
+            if (imageFile) {
+                imageBase64 = await convertToBase64(imageFile);
+            }
+            
+            const rewardData = {
+                title: document.getElementById('rewardTitle').value,
+                description: document.getElementById('rewardDescription').value,
+                cost: document.getElementById('rewardCost').value,
+                vendor: 'Żona Krawca',  // Use consistent vendor name
+                image_url: imageBase64
+            };
+            
+            try {
+                const response = await fetch('/create-reward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(rewardData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    closeCreateReward();
+                    loadVendorRewards(); // Refresh the rewards list
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to create reward. Please try again.');
+            }
+        });
+        
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('createRewardModal');
+            if (event.target == modal) {
+                closeCreateReward();
+            }
+        }
+        
+        // Load rewards when page loads
+        document.addEventListener('DOMContentLoaded', loadVendorRewards);
+    </script>
+</body>
+</html>

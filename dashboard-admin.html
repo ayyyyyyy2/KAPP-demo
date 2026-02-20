@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Welcome</title>
+    <link rel="stylesheet" href="dashboard-admin.css">
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="points-display" onclick="togglePointsHistory()">
+            <h2>🍌 Points: <span id="pointCount">0</span></h2>
+        </div>
+        
+        <!-- Points History Bubble -->
+        <div id="pointsHistoryBubble" class="points-history-bubble hidden">
+            <div class="bubble-header">
+                <h3>🏆 Points History</h3>
+            </div>
+            <div id="historyContent" class="history-content">
+                <p>Loading history...</p>
+            </div>
+        </div>
+        
+        <div class="welcome-content">
+            <h1 class="welcome-title">Welcome Admin</h1>
+            
+            <!-- Admin Avatar -->
+            <div class="user-avatar">
+                <div class="avatar-container admin-avatar">
+                    <div class="avatar-head"></div>
+                    <div class="avatar-body"></div>
+                    <div class="crown">👑</div>
+                </div>
+            </div>
+            
+            <div class="user-info" id="userInfo">
+                <p>Loading user information...</p>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn" onclick="openCreateOffer()">Create an Offer</button>
+                <button class="action-btn" onclick="openYourOffers()">Your Offers</button>
+                <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            <!-- Add the vendors button -->
+            <div class="vendors-button-container">
+                <button class="vendors-btn" onclick="goToVendors()">All Vendors</button>
+            </div>
+            
+            <!-- Add ALL REWARDS button -->
+            <div class="rewards-button-container">
+                <button class="rewards-btn" onclick="goToAllRewards()">ALL REWARDS</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Offer Modal -->
+    <div id="createOfferModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateOffer()">&times;</span>
+            <h2>Create an Offer</h2>
+            <form id="createOfferForm">
+                <label for="offerTitle">Title:</label>
+                <input type="text" id="offerTitle" required>
+                
+                <label for="offerDescription">Description:</label>
+                <textarea id="offerDescription" required></textarea>
+                
+                <label for="receiverEmail">Receiver Email:</label>
+                <input type="email" id="receiverEmail" required>
+                
+                <label for="pointsAmount">Points Amount:</label>
+                <input type="number" id="pointsAmount" min="1" required>
+                
+                <button type="submit">Create Offer</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Your Offers Modal -->
+    <div id="yourOffersModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeYourOffers()">&times;</span>
+            <h2>Your Offers</h2>
+            <div id="offersList">
+                <p>Loading offers...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- My Rewards Modal -->
+    <div id="myRewardsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMyRewards()">&times;</span>
+            <h2>My Claimed Rewards</h2>
+            <div id="claimedRewardsList">
+                <p>Loading claimed rewards...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentUserEmail = '';
+        let currentUserId = '';
+        let isHistoryVisible = false;
+        
+        // Get user data from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userName = urlParams.get('name');
+        const userEmail = urlParams.get('email');
+        const userRegdNo = urlParams.get('regd_no');
+        const userPoints = urlParams.get('points') || '0';
+        
+        currentUserEmail = userEmail;
+        currentUserId = userRegdNo;
+        
+        // Store user data in sessionStorage when page loads
+        if (userName) {
+            const userData = {
+                name: userName,
+                email: userEmail,
+                regd_no: userRegdNo,
+                points: userPoints
+            };
+            sessionStorage.setItem('adminUserData', JSON.stringify(userData));
+            
+            document.getElementById('userInfo').innerHTML = `
+                <p><strong>Name:</strong> 👑 ${userName}</p>
+                <p><strong>Email:</strong> ${userEmail}</p>
+                <p><strong>Registration No:</strong> ${userRegdNo}</p>
+                <p><strong>Role:</strong> Administrator</p>
+            `;
+            
+            document.getElementById('pointCount').textContent = userPoints;
+        } else {
+            // Try to load from sessionStorage if URL params are missing
+            const storedData = sessionStorage.getItem('adminUserData');
+            if (storedData) {
+                const userData = JSON.parse(storedData);
+                document.getElementById('userInfo').innerHTML = `
+                    <p><strong>Name:</strong> 👑 ${userData.name}</p>
+                    <p><strong>Email:</strong> ${userData.email}</p>
+                    <p><strong>Registration No:</strong> ${userData.regd_no}</p>
+                    <p><strong>Role:</strong> Administrator</p>
+                `;
+                document.getElementById('pointCount').textContent = userData.points;
+                currentUserEmail = userData.email;
+                currentUserId = userData.regd_no;
+            }
+        }
+        
+        // Navigate to All Vendors page
+        function goToVendors() {
+            window.location.href = '/all-vendors';
+        }
+        
+        function goToAllRewards() {
+            window.location.href = '/all-rewards';
+        }
+        
+        // Toggle points history bubble
+        function togglePointsHistory() {
+            const bubble = document.getElementById('pointsHistoryBubble');
+            
+            if (isHistoryVisible) {
+                bubble.classList.add('hidden');
+                isHistoryVisible = false;
+            } else {
+                bubble.classList.remove('hidden');
+                loadPointsHistory();
+                isHistoryVisible = true;
+            }
+        }
+        
+        // Load points history
+        async function loadPointsHistory() {
+            try {
+                const response = await fetch(`/get-claimed-offers/${currentUserEmail}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const historyContent = document.getElementById('historyContent');
+                    
+                    if (result.offers.length === 0) {
+                        historyContent.innerHTML = '<p class="no-history">No claimed offers yet! 🌟</p>';
+                    } else {
+                        historyContent.innerHTML = result.offers.map(offer => `
+                            <div class="history-item">
+                                <div class="history-title">🎁 ${offer.title}</div>
+                                <div class="history-points">+${offer.points_amount} 🍌</div>
+                                <div class="history-date">${new Date(offer.createdAt).toLocaleDateString()}</div>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('historyContent').innerHTML = '<p class="error">Failed to load history</p>';
+                }
+            } catch (error) {
+                document.getElementById('historyContent').innerHTML = '<p class="error">Error loading history</p>';
+            }
+        }
+        
+        // Create offer functionality
+        function openCreateOffer() {
+            document.getElementById('createOfferModal').style.display = 'block';
+        }
+        
+        function closeCreateOffer() {
+            document.getElementById('createOfferModal').style.display = 'none';
+        }
+        
+        document.getElementById('createOfferForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('offerTitle').value,
+                description: document.getElementById('offerDescription').value,
+                sent_by: currentUserId,
+                receiver_email: document.getElementById('receiverEmail').value,
+                points_amount: document.getElementById('pointsAmount').value
+            };
+            
+            try {
+                const response = await fetch('/create-offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    closeCreateOffer();
+                    document.getElementById('createOfferForm').reset();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to create offer. Please try again.');
+            }
+        });
+        
+        // Your offers functionality
+        function openYourOffers() {
+            document.getElementById('yourOffersModal').style.display = 'block';
+            loadOffers();
+        }
+        
+        function closeYourOffers() {
+            document.getElementById('yourOffersModal').style.display = 'none';
+        }
+        
+        async function loadOffers() {
+            try {
+                const response = await fetch(`/get-offers/${currentUserEmail}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const offersList = document.getElementById('offersList');
+                    
+                    if (result.offers.length === 0) {
+                        offersList.innerHTML = '<p>No pending offers found.</p>';
+                    } else {
+                        offersList.innerHTML = result.offers.map(offer => `
+                            <div class="offer-item">
+                                <h3>${offer.title}</h3>
+                                <p style="font-style: italic;">"${offer.description}"</p>
+                                <p><strong>Points:</strong> ${offer.points_amount} 🍌</p>
+                                <p><strong>From:</strong> ${offer.sent_by}</p>
+                                <button onclick="claimOffer('${offer.offer_id}')">Claim Offer</button>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('offersList').innerHTML = '<p>Failed to load offers.</p>';
+                }
+            } catch (error) {
+                document.getElementById('offersList').innerHTML = '<p>Error loading offers.</p>';
+            }
+        }
+        
+        async function claimOffer(offerId) {
+            try {
+                const response = await fetch('/claim-offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        offer_id: offerId,
+                        user_email: currentUserEmail
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    document.getElementById('pointCount').textContent = result.new_points;
+                    loadOffers(); // Refresh offers list
+                    if (isHistoryVisible) {
+                        loadPointsHistory(); // Refresh history if visible
+                    }
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to claim offer. Please try again.');
+            }
+        }
+        
+        function logout() {
+            window.location.href = '/';
+        }
+        
+        // Add these functions before the closing script tag
+        async function openMyRewards() {
+            document.getElementById('myRewardsModal').style.display = 'block';
+            await loadClaimedRewards();
+        }
+        
+        function closeMyRewards() {
+            document.getElementById('myRewardsModal').style.display = 'none';
+        }
+        
+        async function loadClaimedRewards() {
+            try {
+                const response = await fetch(`/get-claimed-rewards/${currentUserEmail}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const claimedRewardsList = document.getElementById('claimedRewardsList');
+                    
+                    if (result.claimed_rewards.length === 0) {
+                        claimedRewardsList.innerHTML = '<p>You haven\'t claimed any rewards yet.</p>';
+                    } else {
+                        claimedRewardsList.innerHTML = result.claimed_rewards.map(reward => `
+                            <div class="claimed-reward-item">
+                                <h4>${reward.reward_title}</h4>
+                                <p><strong>Vendor:</strong> ${reward.vendor}</p>
+                                <p><strong>Cost:</strong> ${reward.reward_cost} points</p>
+                                <p><strong>Claimed on:</strong> ${new Date(reward.claimedAt).toLocaleDateString()}</p>
+                                <p><strong>Claim ID:</strong> ${reward.claim_id}</p>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('claimedRewardsList').innerHTML = '<p>Failed to load claimed rewards.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading claimed rewards:', error);
+                document.getElementById('claimedRewardsList').innerHTML = '<p>Error loading claimed rewards.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

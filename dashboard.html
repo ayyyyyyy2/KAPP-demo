@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Welcome</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="welcome-content">
+            <h1 class="welcome-title">Welcome</h1>
+            <div class="user-info" id="userInfo">
+                <p>Loading user information...</p>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <script>
+        // Get user data from URL parameters or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const userName = urlParams.get('name') || localStorage.getItem('userName');
+        const userEmail = urlParams.get('email') || localStorage.getItem('userEmail');
+        const userRegdNo = urlParams.get('regd_no') || localStorage.getItem('userRegdNo');
+        
+        // Display user information
+        if (userName) {
+            document.getElementById('userInfo').innerHTML = `
+                <p><strong>Name:</strong> ${userName}</p>
+                <p><strong>Email:</strong> ${userEmail}</p>
+                <p><strong>Registration No:</strong> ${userRegdNo}</p>
+            `;
+            
+            // Store in localStorage for future visits
+            localStorage.setItem('userName', userName);
+            localStorage.setItem('userEmail', userEmail);
+            localStorage.setItem('userRegdNo', userRegdNo);
+        }
+        
+        function logout() {
+            // Clear stored user data
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userRegdNo');
+            
+            // Redirect to login page
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

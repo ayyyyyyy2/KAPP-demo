@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Authentication</title>
+    <link rel="stylesheet" href="form.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-toggle">
+            <button id="loginBtn" class="toggle-btn active">Login</button>
+            <button id="registerBtn" class="toggle-btn">Register</button>
+        </div>
+        
+        <!-- Login Form -->
+        <form id="loginForm" action="/login" method="POST">
+            <h2>Login</h2>
+            <label for="login_email">Email :</label>
+            <input type="email" id="login_email" name="email" required>
+            <label for="login_password">Password :</label>
+            <input type="password" id="login_password" name="password" required>
+            <button type="submit">Login</button>
+        </form>
+        
+        <!-- Registration Form -->
+        <form id="registerForm" action="/register" method="POST" style="display: none;">
+            <h2>Register</h2>
+            <label for="name">Name :</label>
+            <input type="text" id="name" name="name" required>
+            <label for="email">Email :</label>
+            <input type="email" name="email" required>
+            <label for="password">Password :</label>
+            <input type="password" name="password" required>
+            <p class="auto-regd-info">📝 Registration number will be automatically assigned</p>
+            <button type="submit">Register</button>
+        </form>
+    </div>
+    
+    <script>
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        
+        loginBtn.addEventListener('click', () => {
+            loginForm.style.display = 'flex';
+            registerForm.style.display = 'none';
+            loginBtn.classList.add('active');
+            registerBtn.classList.remove('active');
+        });
+        
+        registerBtn.addEventListener('click', () => {
+            registerForm.style.display = 'flex';
+            loginForm.style.display = 'none';
+            registerBtn.classList.add('active');
+            loginBtn.classList.remove('active');
+        });
+        
+        // Handle registration form submission
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(registerForm);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    // Switch to login form
+                    loginBtn.click();
+                    registerForm.reset();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Registration failed. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

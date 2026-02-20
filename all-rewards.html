@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Rewards</title>
+    <link rel="stylesheet" href="all-rewards.css">
+</head>
+<body>
+    <div class="back-btn" onclick="goBackToDashboard()">
+        <span>← Back to Dashboard</span>
+    </div>
+    
+    <div class="rewards-container">
+        <h1 class="rewards-title">ALL REWARDS</h1>
+        
+        <div id="rewardsGrid" class="rewards-grid">
+            <div class="loading">Loading rewards...</div>
+        </div>
+    </div>
+
+    <!-- Claim Reward Modal -->
+    <div id="claimModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalRewardTitle">Claim Reward</h2>
+                <span class="close" onclick="closeClaimModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="modalRewardImage" class="modal-reward-image"></div>
+                <p id="modalRewardDescription"></p>
+                <div class="modal-reward-details">
+                    <span id="modalRewardCost" class="modal-cost"></span>
+                    <span id="modalRewardVendor" class="modal-vendor"></span>
+                </div>
+                <div class="user-points">
+                    <span>Your Points: <span id="userPointsDisplay">0</span></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="claimButton" class="claim-btn" onmousedown="startClaim()" onmouseup="stopClaim()" onmouseleave="stopClaim()" ontouchstart="startClaim()" ontouchend="stopClaim()">
+                    <span id="claimButtonText">Hold to Claim</span>
+                    <div id="loadingWheel" class="loading-wheel hidden"></div>
+                    <div id="progressBar" class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get user data from sessionStorage - check both keys
+        let userData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+        
+        // If no userData found, check for adminUserData
+        if (!userData.role) {
+            const adminData = JSON.parse(sessionStorage.getItem('adminUserData') || '{}');
+            if (adminData.name) {
+                userData = {
+                    ...adminData,
+                    role: 'admin'
+                };
+            }
+        }
+
+        let currentReward = null;
+        let claimTimer = null;
+        let claimProgress = 0;
+        const CLAIM_DURATION = 3000; // 3 seconds
+        
+        function goBackToDashboard() {
+            const role = userData.role;
+            if (role === 'admin') {
+                window.location.href = '/dashboard-admin';
+            } else if (role === 'teacher') {
+                window.location.href = '/dashboard-teacher';
+            } else {
+                window.location.href = '/dashboard-student';
+            }
+        }
+        
+        async function loadAllRewards() {
+            try {
+                const response = await fetch('/get-all-rewards');
+                const rewards = await response.json();
+                
+                const rewardsGrid = document.getElementById('rewardsGrid');
+                
+                if (rewards.length === 0) {
+                    rewardsGrid.innerHTML = '<div class="no-rewards">No rewards available at the moment.</div>';
+                    return;
+                }
+                
+                rewardsGrid.innerHTML = rewards.map(reward => `
+                    <div class="reward-bubble" data-reward-id="${reward.reward_id}" onclick="openClaimModal('${reward.reward_id}', '${reward.title}', '${reward.description}', ${reward.cost}, '${reward.vendor}', '${reward.image_url || ''}')">
+                        ${reward.image_url ? `<img src="${reward.image_url}" alt="${reward.title}" class="reward-image">` : '<div class="no-image">📦</div>'}
+                        <div class="reward-content">
+                            <h3 class="reward-title">${reward.title}</h3>
+                            <p class="reward-description">${reward.description}</p>
+                            <div class="reward-details">
+                                <span class="reward-cost">💰 ${reward.cost} points</span>
+                                <span class="reward-vendor">📍 ${reward.vendor}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading rewards:', error);
+                document.getElementById('rewardsGrid').innerHTML = '<div class="error">Error loading rewards. Please try again later.</div>';
+            }
+        }
+
+        async function loadUserPoints() {
+            try {
+                const response = await fetch(`/get-points/${userData.email}`);
+                const result = await response.json();
+                if (result.success) {
+                    userData.points = result.points;
+                    document.getElementById('userPointsDisplay').textContent = result.points;
+                }
+            } catch (error) {
+                console.error('Error loading user points:', error);
+            }
+        }
+        
+        function openClaimModal(rewardId, title, description, cost, vendor, imageUrl) {
+            currentReward = { rewardId, title, description, cost, vendor, imageUrl };
+            
+            document.getElementById('modalRewardTitle').textContent = title;
+            document.getElementById('modalRewardDescription').textContent = description;
+            document.getElementById('modalRewardCost').textContent = `💰 ${cost} points`;
+            document.getElementById('modalRewardVendor').textContent = `📍 ${vendor}`;
+            
+            const imageContainer = document.getElementById('modalRewardImage');
+            if (imageUrl) {
+                imageContainer.innerHTML = `<img src="${imageUrl}" alt="${title}" class="modal-image">`;
+            } else {
+                imageContainer.innerHTML = '<div class="modal-no-image">📦</div>';
+            }
+            
+            loadUserPoints();
+            resetClaimButton();
+            document.getElementById('claimModal').style.display = 'block';
+        }
+        
+        function closeClaimModal() {
+            document.getElementById('claimModal').style.display = 'none';
+            stopClaim();
+            currentReward = null;
+        }
+        
+        function startClaim() {
+            if (!currentReward || claimTimer) return;
+            
+            // Check if user has enough points
+            if (userData.points < currentReward.cost) {
+                alert(`Insufficient points! You need ${currentReward.cost} points but only have ${userData.points}.`);
+                return;
+            }
+            
+            const button = document.getElementById('claimButton');
+            const text = document.getElementById('claimButtonText');
+            const wheel = document.getElementById('loadingWheel');
+            const progressFill = document.getElementById('progressFill');
+            
+            button.classList.add('claiming');
+            text.textContent = 'Hold to Claim...';
+            wheel.classList.remove('hidden');
+            
+            claimProgress = 0;
+            progressFill.style.width = '0%';
+            
+            claimTimer = setInterval(() => {
+                claimProgress += 50; // Update every 50ms
+                const percentage = (claimProgress / CLAIM_DURATION) * 100;
+                progressFill.style.width = percentage + '%';
+                
+                if (claimProgress >= CLAIM_DURATION) {
+                    completeClaim();
+                }
+            }, 50);
+        }
+        
+        function stopClaim() {
+            if (claimTimer) {
+                clearInterval(claimTimer);
+                claimTimer = null;
+            }
+            resetClaimButton();
+        }
+        
+        function resetClaimButton() {
+            const button = document.getElementById('claimButton');
+            const text = document.getElementById('claimButtonText');
+            const wheel = document.getElementById('loadingWheel');
+            const progressFill = document.getElementById('progressFill');
+            
+            button.classList.remove('claiming');
+            text.textContent = 'Hold to Claim';
+            wheel.classList.add('hidden');
+            progressFill.style.width = '0%';
+            claimProgress = 0;
+        }
+        
+        async function completeClaim() {
+            stopClaim();
+            
+            try {
+                const response = await fetch('/claim-reward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reward_id: currentReward.rewardId,
+                        user_email: userData.email,
+                        user_name: userData.name
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    userData.points = result.new_points;
+                    
+                    // Update sessionStorage
+                    if (sessionStorage.getItem('userData')) {
+                        const storedData = JSON.parse(sessionStorage.getItem('userData'));
+                        storedData.points = result.new_points;
+                        sessionStorage.setItem('userData', JSON.stringify(storedData));
+                    }
+                    if (sessionStorage.getItem('adminUserData')) {
+                        const storedData = JSON.parse(sessionStorage.getItem('adminUserData'));
+                        storedData.points = result.new_points;
+                        sessionStorage.setItem('adminUserData', JSON.stringify(storedData));
+                    }
+                    
+                    closeClaimModal();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to claim reward. Please try again.');
+                console.error('Claim error:', error);
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('claimModal');
+            if (event.target === modal) {
+                closeClaimModal();
+            }
+        }
+        
+        // Load rewards when page loads
+        document.addEventListener('DOMContentLoaded', loadAllRewards);
+    </script>
+</body>
+</html>
