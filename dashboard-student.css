@@ -119,6 +119,114 @@ body {
     height: 50px;
     border-radius: 30px 30px 10px 10px;
     position: relative;
+    transition: background 0.3s ease;
+}
+
+/* Hair Styles */
+.avatar-hair {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 86px;
+    height: 40px;
+    z-index: 1;
+    border-radius: 40px 40px 0 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.hair-short {
+    height: 30px;
+    top: 5px;
+}
+
+.hair-long {
+    height: 70px;
+    border-radius: 40px 40px 20px 20px;
+}
+
+.hair-spiky {
+    clip-path: polygon(0% 100%, 10% 0%, 20% 100%, 30% 0%, 40% 100%, 50% 0%, 60% 100%, 70% 0%, 80% 100%, 90% 0%, 100% 100%);
+    height: 35px;
+    top: -10px;
+}
+
+/* Customization Modal Styles */
+.customization-section {
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.customization-section h3 {
+    font-size: 16px;
+    color: #8d6e63;
+    margin-bottom: 12px;
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.option-btn {
+    padding: 8px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.option-btn:hover {
+    border-color: #8d6e63;
+    background: #f5f5f5;
+}
+
+.color-btn {
+    height: 40px;
+    width: 100%;
+}
+
+#hairColorPicker {
+    width: 100%;
+    height: 40px;
+    padding: 2px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.save-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(141, 110, 99, 0.3);
+}
+
+.avatar-head {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #fdbcb4 0%, #f4a6a0 100%);
+    border: 3px solid #e8967a;
+    position: relative;
+    margin-bottom: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Student Avatar */
@@ -133,6 +241,8 @@ body {
     right: -25px;
     font-size: 20px;
     animation: backpackBounce 2s ease-in-out infinite;
+    z-index: 5;
+    pointer-events: none;
 }
 
 /* Animations */
@@ -652,4 +762,70 @@ body {
 .claimed-reward-item p {
     margin: 5px 0;
     font-size: 14px;
+}
+
+/* Mobile Responsiveness for iPhone */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 10px;
+        align-items: flex-start;
+        padding-top: 60px;
+    }
+
+    .welcome-container {
+        padding: 40px 20px;
+        margin-top: 20px;
+    }
+
+    .welcome-title {
+        font-size: 32px;
+        letter-spacing: 1px;
+    }
+
+    .points-display {
+        top: 10px;
+        right: 10px;
+        padding: 10px 15px;
+        font-size: 14px;
+        border-radius: 20px;
+    }
+
+    .points-history-bubble {
+        width: calc(100% - 20px);
+        right: 10px;
+        top: 60px;
+        max-height: 300px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .action-btn, .logout-btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+
+    .rewards-btn {
+        padding: 15px 20px;
+        font-size: 16px;
+        border-radius: 12px;
+    }
+
+    .modal-content {
+        padding: 20px;
+        margin: 10% auto;
+        width: 95%;
+    }
+
+    .user-info {
+        padding: 15px;
+    }
+
+    .user-info p {
+        font-size: 14px;
+    }
 }

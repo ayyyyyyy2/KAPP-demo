@@ -48,7 +48,8 @@ label {
 }
 
 input[type="text"],
-input[type="email"] {
+input[type="email"],
+input[type="password"] {
     padding: 16px 20px;
     border: 2px solid #e1e8ed;
     border-radius: 12px;
@@ -59,7 +60,8 @@ input[type="email"] {
 }
 
 input[type="text"]:focus,
-input[type="email"]:focus {
+input[type="email"]:focus,
+input[type="password"]:focus {
     outline: none;
     border-color: #d4af37;
     box-shadow: 
@@ -97,9 +99,56 @@ input[type="submit"]:hover {
 
 input[type="submit"]:active {
     transform: translateY(-1px);
-    box-shadow: 
-        0 4px 8px rgba(30, 60, 114, 0.3),
-        0 2px 4px rgba(212, 175, 55, 0.2);
+    box-shadow: 0 4px 8px rgba(30, 60, 114, 0.2);
+}
+
+/* Mobile Responsiveness for iPhone */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 10px;
+        align-items: flex-start;
+        padding-top: 40px;
+    }
+
+    .container {
+        padding: 25px 20px;
+        border-radius: 15px;
+    }
+
+    form {
+        gap: 15px;
+    }
+
+    h2 {
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+
+    label {
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+        padding: 12px 15px;
+        font-size: 16px; /* Prevents iPhone zoom on focus */
+    }
+
+    .form-toggle {
+        margin-bottom: 20px;
+    }
+
+    .toggle-btn {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+
+    button[type="submit"] {
+        padding: 15px 20px;
+        font-size: 16px;
+    }
 }
 
 /* Add a subtle animation */

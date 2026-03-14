@@ -26,11 +26,12 @@
             <h1 class="welcome-title">Welcome Admin</h1>
             
             <!-- Admin Avatar -->
-            <div class="user-avatar">
-                <div class="avatar-container admin-avatar">
+            <div class="user-avatar" id="avatarContainer">
+                <div class="avatar-container admin-avatar" id="mainAvatar">
+                    <div class="avatar-hair" id="avatarHair"></div>
                     <div class="avatar-head"></div>
-                    <div class="avatar-body"></div>
-                    <div class="crown">👑</div>
+                    <div class="avatar-body" id="avatarBody"></div>
+                    <div class="crown" id="avatarHat">👑</div>
                 </div>
             </div>
             
@@ -78,6 +79,52 @@
         </div>
     </div>
     
+    <!-- Avatar Customization Modal -->
+    <div id="avatarModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAvatarModal()">&times;</span>
+            <h2>Customize Avatar</h2>
+            
+            <div class="customization-section">
+                <h3>Hat</h3>
+                <div class="options-grid">
+                    <button class="option-btn" onclick="setAvatarPart('hat', 'none')">None</button>
+                    <button class="option-btn" onclick="setAvatarPart('hat', 'crown')">👑 Crown</button>
+                    <button class="option-btn" onclick="setAvatarPart('hat', 'cap')">🧢 Cap</button>
+                    <button class="option-btn" onclick="setAvatarPart('hat', 'tophat')">🎩 Top Hat</button>
+                </div>
+            </div>
+
+            <div class="customization-section">
+                <h3>Shirt Color</h3>
+                <div class="options-grid">
+                    <button class="option-btn color-btn" style="background: #1a237e" onclick="setAvatarPart('shirt', '#1a237e')"></button>
+                    <button class="option-btn color-btn" style="background: #dc3545" onclick="setAvatarPart('shirt', '#dc3545')"></button>
+                    <button class="option-btn color-btn" style="background: #28a745" onclick="setAvatarPart('shirt', '#28a745')"></button>
+                    <button class="option-btn color-btn" style="background: #ffc107" onclick="setAvatarPart('shirt', '#ffc107')"></button>
+                    <button class="option-btn color-btn" style="background: #6f42c1" onclick="setAvatarPart('shirt', '#6f42c1')"></button>
+                </div>
+            </div>
+
+            <div class="customization-section">
+                <h3>Hair Style</h3>
+                <div class="options-grid">
+                    <button class="option-btn" onclick="setAvatarPart('hairStyle', 'none')">None</button>
+                    <button class="option-btn" onclick="setAvatarPart('hairStyle', 'short')">Short</button>
+                    <button class="option-btn" onclick="setAvatarPart('hairStyle', 'long')">Long</button>
+                    <button class="option-btn" onclick="setAvatarPart('hairStyle', 'spiky')">Spiky</button>
+                </div>
+            </div>
+
+            <div class="customization-section">
+                <h3>Hair Color</h3>
+                <input type="color" id="hairColorPicker" onchange="setAvatarPart('hairColor', this.value)">
+            </div>
+
+            <button class="save-btn" onclick="saveAvatar()">Save Changes</button>
+        </div>
+    </div>
+
     <!-- Your Offers Modal -->
     <div id="yourOffersModal" class="modal">
         <div class="modal-content">
@@ -104,6 +151,111 @@
         let currentUserEmail = '';
         let currentUserId = '';
         let isHistoryVisible = false;
+        let currentAvatar = {
+            hat: 'none',
+            shirt: 'default',
+            hairStyle: 'none',
+            hairColor: '#000000'
+        };
+
+        // Long press detection for avatar
+        let holdTimer;
+        const avatarContainer = document.getElementById('avatarContainer');
+
+        avatarContainer.addEventListener('mousedown', startHold);
+        avatarContainer.addEventListener('touchstart', startHold);
+        avatarContainer.addEventListener('mouseup', endHold);
+        avatarContainer.addEventListener('mouseleave', endHold);
+        avatarContainer.addEventListener('touchend', endHold);
+
+        function startHold(e) {
+            holdTimer = setTimeout(() => {
+                openAvatarModal();
+            }, 1000); // 1 second hold
+        }
+
+        function endHold() {
+            clearTimeout(holdTimer);
+        }
+
+        function openAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'block';
+            document.getElementById('hairColorPicker').value = currentAvatar.hairColor;
+        }
+
+        function closeAvatarModal() {
+            document.getElementById('avatarModal').style.display = 'none';
+        }
+
+        function setAvatarPart(part, value) {
+            currentAvatar[part] = value;
+            updateAvatarDisplay();
+        }
+
+        function updateAvatarDisplay() {
+            const avatarHair = document.getElementById('avatarHair');
+            const avatarBody = document.getElementById('avatarBody');
+            const avatarHat = document.getElementById('avatarHat');
+
+            // Update Hat
+            switch(currentAvatar.hat) {
+                case 'crown': avatarHat.textContent = '👑'; avatarHat.style.display = 'block'; break;
+                case 'cap': avatarHat.textContent = '🧢'; avatarHat.style.display = 'block'; break;
+                case 'tophat': avatarHat.textContent = '🎩'; avatarHat.style.display = 'block'; break;
+                default: avatarHat.style.display = 'none';
+            }
+
+            // Update Shirt
+            if (currentAvatar.shirt === 'default') {
+                avatarBody.style.background = ''; // Use CSS default
+            } else {
+                avatarBody.style.background = currentAvatar.shirt;
+            }
+
+            // Update Hair
+            avatarHair.className = 'avatar-hair ' + (currentAvatar.hairStyle !== 'none' ? 'hair-' + currentAvatar.hairStyle : '');
+            avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
+        }
+
+        async function saveAvatar() {
+            if (!currentUserEmail) {
+                alert('User email not found. Please log in again.');
+                return;
+            }
+            try {
+                const response = await fetch('/api/update-avatar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: currentUserEmail,
+                        avatar: currentAvatar
+                    })
+                });
+                
+                let result;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    result = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+                }
+
+                if (result.success) {
+                    alert('Avatar saved successfully!');
+                    closeAvatarModal();
+                    // Update stored data
+                    const storedData = JSON.parse(sessionStorage.getItem('adminUserData') || '{}');
+                    storedData.avatar = currentAvatar;
+                    sessionStorage.setItem('adminUserData', JSON.stringify(storedData));
+                } else {
+                    alert('Failed to save avatar: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Save avatar error:', error);
+                alert('Failed to save avatar. Error: ' + error.message);
+            }
+        }
         
         // Get user data from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -111,9 +263,17 @@
         const userEmail = urlParams.get('email');
         const userRegdNo = urlParams.get('regd_no');
         const userPoints = urlParams.get('points') || '0';
+        const userAvatarStr = urlParams.get('avatar');
         
         currentUserEmail = userEmail;
         currentUserId = userRegdNo;
+
+        if (userAvatarStr) {
+            try {
+                currentAvatar = JSON.parse(userAvatarStr);
+                updateAvatarDisplay();
+            } catch(e) {}
+        }
         
         // Store user data in sessionStorage when page loads
         if (userName) {

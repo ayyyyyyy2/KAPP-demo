@@ -70,6 +70,12 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    avatar: {
+        hat: { type: String, default: 'none' },
+        shirt: { type: String, default: 'default' },
+        hairStyle: { type: String, default: 'none' },
+        hairColor: { type: String, default: '#000000' }
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -186,6 +192,35 @@ app.use(async (req, res, next) => {
 
 app.use(express.static(process.cwd()));
 
+// Handle avatar update
+app.post('/api/update-avatar', async (req, res) => {
+    try {
+        const { email, avatar } = req.body;
+        console.log('🔄 Avatar update request for:', email, 'Data:', avatar);
+        
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+
+        const user = await User.findOneAndUpdate(
+            { email: email },
+            { avatar: avatar },
+            { new: true }
+        );
+        
+        if (user) {
+            console.log('✅ Avatar updated for:', email);
+            res.json({ success: true, avatar: user.avatar });
+        } else {
+            console.log('❌ User not found for avatar update:', email);
+            res.status(404).json({ success: false, message: 'User not found' });
+        }
+    } catch (error) {
+        console.error('❌ Update avatar error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'index.html'));
@@ -220,7 +255,13 @@ app.post('/register', async (req, res) => {
             name,
             email,
             password,
-            points: 0
+            points: 0,
+            avatar: {
+                hat: 'none',
+                shirt: 'default',
+                hairStyle: 'none',
+                hairColor: '#000000'
+            }
         });
         
         await newUser.save();
@@ -288,7 +329,8 @@ app.post('/login', async (req, res) => {
                     break;
             }
             
-            const redirectUrl = `/${dashboardPage}?name=${encodeURIComponent(user.name)}&email=${encodeURIComponent(user.email)}&regd_no=${encodeURIComponent(user.regd_no)}&role=${encodeURIComponent(user.role)}&points=${encodeURIComponent(user.points || 0)}`;
+            const avatarData = JSON.stringify(user.avatar || { hat: 'none', shirt: 'default', hairStyle: 'none', hairColor: '#000000' });
+            const redirectUrl = `/${dashboardPage}?name=${encodeURIComponent(user.name)}&email=${encodeURIComponent(user.email)}&regd_no=${encodeURIComponent(user.regd_no)}&role=${encodeURIComponent(user.role)}&points=${encodeURIComponent(user.points || 0)}&avatar=${encodeURIComponent(avatarData)}`;
             res.redirect(redirectUrl);
         } else {
             res.status(401).send(`
