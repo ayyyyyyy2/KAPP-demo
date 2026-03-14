@@ -8,10 +8,38 @@ const PORT = 3018;
 // MongoDB Atlas connection with new cluster - targeting demo.users database
 const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://straightouttaaside:nSTkA3ipZ5gJZO4W@cluster0.ncuhort.mongodb.net/demo?retryWrites=true&w=majority&appName=Cluster0';
 
-mongoose.connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
+// Cached connection promise
+let cachedConnection = null;
+
+async function connectToDatabase() {
+    if (cachedConnection && mongoose.connection.readyState === 1) {
+        return cachedConnection;
+    }
+
+    if (!cachedConnection || mongoose.connection.readyState === 0) {
+        console.log('🔄 Connecting to MongoDB...');
+        cachedConnection = mongoose.connect(mongoURI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 10000, // 10 seconds timeout for server selection
+            connectTimeoutMS: 10000,         // 10 seconds timeout for initial connection
+        });
+    }
+
+    try {
+        await cachedConnection;
+        console.log('✅ MongoDB connected successfully');
+    } catch (err) {
+        cachedConnection = null;
+        console.error('❌ MongoDB connection error:', err);
+        throw err;
+    }
+
+    return cachedConnection;
+}
+
+// Initial connection attempt (don't block start)
+connectToDatabase().catch(err => console.error('Initial connection failed:', err.message));
 
 // User schema
 const userSchema = new mongoose.Schema({
@@ -136,6 +164,26 @@ const Reward = mongoose.model('Reward', rewardSchema, 'rewards');
 // Updated configuration with increased limits
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.json({ limit: '50mb' }));
+
+// Middleware to ensure database connection before handling requests
+app.use(async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (err) {
+        console.error('Database connection middleware error:', err.message);
+        // Only show error for API/POST requests, let static files through (though express.static is above)
+        if (req.method !== 'GET' || req.path.startsWith('/get-') || req.path === '/login' || req.path === '/register') {
+            return res.status(500).json({
+                success: false,
+                message: 'Database connection failed. Please try again later or check your network/whitelisting.',
+                error: err.message
+            });
+        }
+        next();
+    }
+});
+
 app.use(express.static(process.cwd()));
 
 // Routes
@@ -192,6 +240,10 @@ app.post('/register', async (req, res) => {
         
     } catch (error) {
         console.error('Registration error:', error); // Add detailed logging
+        const errorMessage = error.message.includes('buffering timed out') 
+            ? 'Database connection timed out. Please check if your IP is whitelisted in MongoDB Atlas and the MONGODB_URI is correct.'
+            : error.message;
+
         if (error.code === 11000) {
             // Duplicate key error (email already exists)
             const field = Object.keys(error.keyPattern)[0];
@@ -202,8 +254,8 @@ app.post('/register', async (req, res) => {
         } else {
             res.status(500).json({
                 success: false,
-                message: 'Registration failed: ' + error.message,
-                error: error.message
+                message: 'Registration failed: ' + errorMessage,
+                error: errorMessage
             });
         }
     }
@@ -247,9 +299,14 @@ app.post('/login', async (req, res) => {
             `);
         }
     } catch (error) {
+        console.error('Login error:', error);
+        const errorMessage = error.message.includes('buffering timed out') 
+            ? 'Database connection timed out. Please check if your IP is whitelisted in MongoDB Atlas and the MONGODB_URI is correct.'
+            : error.message;
+            
         res.status(500).send(`
             <script>
-                alert('Login failed: ${error.message}');
+                alert('Login failed: ${errorMessage}');
                 window.location.href = '/';
             </script>
         `);
@@ -508,15 +565,7 @@ app.get('/all-rewards', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'all-rewards.html'));
 });
 
-// MongoDB connection events
-mongoose.connection.on('connected', () => {
-    console.log('✅ Connected to MongoDB Atlas');
-});
-
-mongoose.connection.on('error', (err) => {
-    console.log('❌ MongoDB connection error:', err);
-});
-
+// MongoDB connection events (for logging in development)
 mongoose.connection.on('disconnected', () => {
     console.log('⚠️ MongoDB disconnected');
 });
