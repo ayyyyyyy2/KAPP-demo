@@ -166,6 +166,14 @@ const User = mongoose.model('User', userSchema, 'users');
 const Offer = mongoose.model('Offer', offerSchema, 'offers');
 const Reward = mongoose.model('Reward', rewardSchema, 'rewards');
 
+// Counter schema to generate sequential IDs safely
+const counterSchema = new mongoose.Schema({
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 }
+});
+
+const Counter = mongoose.model('Counter', counterSchema, 'counters');
+
 // Middleware
 // Updated configuration with increased limits
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -239,13 +247,33 @@ app.post('/register', async (req, res) => {
             });
         }
         
-        const lastUser = await User.findOne().sort({ regd_no: -1 });
-        let nextRegdNo = '1';
+        // Generate unique registration number using atomic counter
+        // Scalable approach: only check User collection if counter doesn't exist
+        let counter = await Counter.findOne({ _id: 'userRegistration' });
         
-        if (lastUser && lastUser.regd_no) {
-            const lastRegdNo = parseInt(lastUser.regd_no);
-            nextRegdNo = (lastRegdNo + 1).toString();
+        if (!counter) {
+            // First time setup or counter lost: sync with existing users
+            const maxUser = await User.aggregate([
+                { $addFields: { regd_no_num: { $toInt: '$regd_no' } } },
+                { $sort: { regd_no_num: -1 } },
+                { $limit: 1 },
+                { $project: { regd_no_num: 1 } }
+            ]);
+            const currentMax = (maxUser[0] && maxUser[0].regd_no_num) ? maxUser[0].regd_no_num : 0;
+            counter = await Counter.findOneAndUpdate(
+                { _id: 'userRegistration' },
+                { $setOnInsert: { seq: currentMax } },
+                { upsert: true, new: true }
+            );
         }
+
+        // Atomically increment and get new ID
+        counter = await Counter.findOneAndUpdate(
+            { _id: 'userRegistration' },
+            { $inc: { seq: 1 } },
+            { new: true }
+        );
+        const nextRegdNo = String(counter.seq);
         
         console.log('Generated registration number:', nextRegdNo); // Add logging
         
@@ -625,14 +653,33 @@ app.post('/create-reward', async (req, res) => {
     try {
         const { title, description, cost, vendor, image_url } = req.body;
         
-        // Generate unique reward ID
-        const lastReward = await Reward.findOne().sort({ reward_id: -1 });
-        let nextRewardId = '1';
+        // Generate unique reward ID using atomic counter
+        // Scalable approach: only check Reward collection if counter doesn't exist
+        let counter = await Counter.findOne({ _id: 'rewardCreation' });
         
-        if (lastReward && lastReward.reward_id) {
-            const lastRewardId = parseInt(lastReward.reward_id);
-            nextRewardId = (lastRewardId + 1).toString();
+        if (!counter) {
+            // First time setup or counter lost: sync with existing rewards
+            const maxReward = await Reward.aggregate([
+                { $addFields: { reward_id_num: { $toInt: '$reward_id' } } },
+                { $sort: { reward_id_num: -1 } },
+                { $limit: 1 },
+                { $project: { reward_id_num: 1 } }
+            ]);
+            const currentMax = (maxReward[0] && maxReward[0].reward_id_num) ? maxReward[0].reward_id_num : 0;
+            counter = await Counter.findOneAndUpdate(
+                { _id: 'rewardCreation' },
+                { $setOnInsert: { seq: currentMax } },
+                { upsert: true, new: true }
+            );
         }
+
+        // Atomically increment and get new ID
+        counter = await Counter.findOneAndUpdate(
+            { _id: 'rewardCreation' },
+            { $inc: { seq: 1 } },
+            { new: true }
+        );
+        const nextRewardId = String(counter.seq);
         
         const newReward = new Reward({
             reward_id: nextRewardId,
@@ -812,14 +859,6 @@ const claimedRewardSchema = new mongoose.Schema({
     }
 });
 
-// Counter schema to generate sequential IDs safely
-const counterSchema = new mongoose.Schema({
-    _id: { type: String, required: true },
-    seq: { type: Number, default: 0 }
-});
-
-const Counter = mongoose.model('Counter', counterSchema, 'counters');
-
 const ClaimedReward = mongoose.model('ClaimedReward', claimedRewardSchema, 'rewards_claimed');
 
 // Add this new endpoint before the final closing bracket (around line 654)
@@ -857,26 +896,33 @@ app.post('/claim-reward', async (req, res) => {
             });
         }
         
-        // Generate unique claim ID using atomic counter (avoids string sort issues)
-        // First, ensure the counter is at least the current max in the collection
-        const maxDoc = await ClaimedReward.aggregate([
-            { $addFields: { claim_id_num: { $toInt: '$claim_id' } } },
-            { $sort: { claim_id_num: -1 } },
-            { $limit: 1 },
-            { $project: { claim_id_num: 1 } }
-        ]);
-        const currentMax = (maxDoc[0] && maxDoc[0].claim_id_num) ? maxDoc[0].claim_id_num : 0;
-        await Counter.updateOne(
-            { _id: 'claimedReward' },
-            { $max: { seq: currentMax } },
-            { upsert: true }
-        );
-        const counter = await Counter.findOneAndUpdate(
+        // Generate unique claim ID using atomic counter
+        // Scalable approach: only check ClaimedReward collection if counter doesn't exist
+        let counterDoc = await Counter.findOne({ _id: 'claimedReward' });
+        
+        if (!counterDoc) {
+            // First time setup or counter lost: sync with existing claimed rewards
+            const maxDoc = await ClaimedReward.aggregate([
+                { $addFields: { claim_id_num: { $toInt: '$claim_id' } } },
+                { $sort: { claim_id_num: -1 } },
+                { $limit: 1 },
+                { $project: { claim_id_num: 1 } }
+            ]);
+            const currentMax = (maxDoc[0] && maxDoc[0].claim_id_num) ? maxDoc[0].claim_id_num : 0;
+            counterDoc = await Counter.findOneAndUpdate(
+                { _id: 'claimedReward' },
+                { $setOnInsert: { seq: currentMax } },
+                { upsert: true, new: true }
+            );
+        }
+
+        // Atomically increment and get new ID
+        counterDoc = await Counter.findOneAndUpdate(
             { _id: 'claimedReward' },
             { $inc: { seq: 1 } },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
+            { new: true }
         );
-        const nextClaimId = String(counter.seq);
+        const nextClaimId = String(counterDoc.seq);
         console.log('Generated claim_id for reward claim:', nextClaimId);
         
         // Deduct points from user
