@@ -390,6 +390,13 @@
                 
                 if (result.success) {
                     alert(result.message);
+                    if (typeof result.new_points !== 'undefined') {
+                        updateDisplayedPoints(result.new_points);
+                        if (isHistoryVisible) {
+                            loadPointsHistory();
+                        }
+                    }
+                    refreshCurrentPoints();
                     closeCreateOffer();
                     document.getElementById('createOfferForm').reset();
                 } else {
@@ -467,25 +474,86 @@
             }
         });
         
-        // Load points history
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function conciseLabel(entry) {
+            const desc = String(entry.description || '');
+            switch (entry.type) {
+                case 'sent_offer': {
+                    const m = desc.match(/\s+to\s+([^:]+)$/i);
+                    const who = m ? m[1].trim() : '';
+                    return who ? `📤 sent to ${who}` : '📤 sent';
+                }
+                case 'claimed_offer': {
+                    const m = desc.match(/^Received points from\s+([^:]+)\s*:/i);
+                    const who = m ? m[1].trim() : '';
+                    return who ? `📥 received from ${who}` : '📥 received';
+                }
+                case 'reward_claim': {
+                    const m = desc.match(/^Claimed reward:\s*([^()]+)(?:\s*\(.*\))?$/i);
+                    const what = m ? m[1].trim() : '';
+                    return what ? `🛍️ claimed ${what}` : '🛍️ claimed reward';
+                }
+                default:
+                    return desc || '🧾 points update';
+            }
+        }
+
+        async function refreshCurrentPoints() {
+            try {
+                const resp = await fetch(`/get-points/${currentUserEmail}`);
+                const data = await resp.json();
+                if (data && data.success) {
+                    updateDisplayedPoints(data.points);
+                }
+            } catch (_) {}
+        }
+
+        function updateDisplayedPoints(newPoints) {
+            document.getElementById('pointCount').textContent = newPoints;
+            try {
+                const storedData = sessionStorage.getItem('userData');
+                if (storedData) {
+                    const data = JSON.parse(storedData);
+                    data.points = String(newPoints);
+                    sessionStorage.setItem('userData', JSON.stringify(data));
+                }
+            } catch (e) {}
+        }
+
         async function loadPointsHistory() {
             try {
-                const response = await fetch(`/get-claimed-offers/${currentUserEmail}`);
+                const response = await fetch(`/get-points-history/${currentUserEmail}`);
                 const result = await response.json();
                 
                 if (result.success) {
                     const historyContent = document.getElementById('historyContent');
-                    
-                    if (result.offers.length === 0) {
-                        historyContent.innerHTML = '<p class="no-history">No claimed offers yet! 🌟</p>';
+
+                    const history = Array.isArray(result.history) ? result.history : [];
+
+                    if (history.length === 0) {
+                        historyContent.innerHTML = '<p class="no-history">No points history yet! 🌟</p>';
                     } else {
-                        historyContent.innerHTML = result.offers.map(offer => `
-                            <div class="history-item">
-                                <div class="history-title">🎁 ${offer.title}</div>
-                                <div class="history-points">+${offer.points_amount} 🍌</div>
-                                <div class="history-date">${new Date(offer.claimedAt || offer.createdAt).toLocaleDateString()}</div>
-                            </div>
-                        `).join('');
+                        historyContent.innerHTML = history.map(entry => {
+                            const amount = Number(entry.amount || 0);
+                            const sign = amount >= 0 ? '+' : '';
+                            const label = conciseLabel(entry);
+                            const date = new Date(entry.timestamp || Date.now()).toLocaleDateString();
+                            return `
+                                <div class="history-item">
+                                    <div class="history-title">${escapeHtml(label)}</div>
+                                    <div class="history-points">${sign}${amount} 🍌</div>
+                                    <div class="history-date">${escapeHtml(date)}</div>
+                                </div>
+                            `;
+                        }).join('');
                     }
                 } else {
                     document.getElementById('historyContent').innerHTML = '<p class="error">Failed to load history</p>';
@@ -512,7 +580,8 @@
                 
                 if (result.success) {
                     alert(result.message);
-                    document.getElementById('pointCount').textContent = result.new_points;
+                    updateDisplayedPoints(result.new_points);
+                    refreshCurrentPoints();
                     loadOffers(); // Refresh offers list
                     if (isHistoryVisible) {
                         loadPointsHistory(); // Refresh history if visible
@@ -670,6 +739,12 @@
                 document.getElementById('claimedRewardsList').innerHTML = '<p>Error loading claimed rewards.</p>';
             }
         }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof currentUserEmail === 'string' && currentUserEmail) {
+                refreshCurrentPoints();
+            }
+        });
     </script>
 </body>
 </html>

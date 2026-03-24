@@ -42,6 +42,12 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    pointsHistory: [{
+        amount: Number,
+        type: { type: String }, // 'sent_offer', 'claimed_offer', 'reward_claim'
+        description: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
     avatar: {
         hat: { type: String, default: 'none' },
         shirt: { type: String, default: 'default' },
@@ -330,6 +336,7 @@ app.post('/login', async (req, res) => {
 app.post('/create-offer', async (req, res) => {
     try {
         const { title, description, sent_by, receiver_email, points_amount } = req.body;
+        const amount = parseInt(points_amount);
         
         // Validate receiver email exists
         const receiver = await User.findOne({ email: receiver_email });
@@ -338,6 +345,56 @@ app.post('/create-offer', async (req, res) => {
                 success: false,
                 message: 'Receiver email not found'
             });
+        }
+        
+        // Find the sender and deduct points (only for 'user' role, or if you want it for everyone)
+        const sender = await User.findOne({ regd_no: sent_by });
+        if (!sender) {
+            return res.status(400).json({
+                success: false,
+                message: 'Sender not found'
+            });
+        }
+        
+        // Only deduct points for students ('user' role)
+        // Teachers and Admins might have unlimited points or a different balance system
+        if (sender.role === 'user') {
+            if ((sender.points || 0) < amount) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Not enough points'
+                });
+            }
+            
+            sender.points -= amount;
+            sender.pointsHistory.push({
+                amount: -amount,
+                type: 'sent_offer',
+                description: `Sent offer: ${title} to ${receiver.name}`,
+                timestamp: new Date()
+            });
+            await sender.save();
+        } else {
+            // For teachers/admins, still record the history but don't deduct if they have unlimited
+            // Or if they have a balance, deduct it too. Let's assume teachers also have a balance for now.
+            // If the user wants teachers to have unlimited, we can adjust this.
+            // For now, let's treat everyone equally for simplicity unless told otherwise.
+            if ((sender.points || 0) < amount) {
+                // If teachers have unlimited, skip this check.
+                // But let's assume everyone has a balance for consistency.
+                return res.status(400).json({
+                    success: false,
+                    message: 'Not enough points'
+                });
+            }
+            sender.points -= amount;
+            sender.pointsHistory.push({
+                amount: -amount,
+                type: 'sent_offer',
+                description: `Sent offer: ${title} to ${receiver.name}`,
+                timestamp: new Date()
+            });
+            await sender.save();
         }
         
         // Generate unique offer ID with proper numeric sorting
@@ -362,7 +419,7 @@ app.post('/create-offer', async (req, res) => {
             description,
             sent_by,
             receiver_email,
-            points_amount: parseInt(points_amount)
+            points_amount: amount
         });
         
         await newOffer.save();
@@ -370,7 +427,8 @@ app.post('/create-offer', async (req, res) => {
         res.json({
             success: true,
             message: 'Offer created successfully!',
-            offer: newOffer
+            offer: newOffer,
+            new_points: sender.points
         });
         
     } catch (error) {
@@ -457,7 +515,17 @@ app.post('/claim-offer', async (req, res) => {
             });
         }
         
+        // Find sender to get name for history
+        const sender = await User.findOne({ regd_no: offer.sent_by });
+        const senderName = sender ? sender.name : 'Unknown';
+        
         user.points = (user.points || 0) + offer.points_amount;
+        user.pointsHistory.push({
+            amount: offer.points_amount,
+            type: 'claimed_offer',
+            description: `Received points from ${senderName}: ${offer.title}`,
+            timestamp: new Date()
+        });
         await user.save();
         
         // Mark offer as claimed and set claimedAt timestamp
@@ -517,6 +585,35 @@ app.get('/users', async (req, res) => {
             success: false,
             message: 'Failed to fetch users',
             error: error.message
+        });
+    }
+});
+
+app.get('/get-points-history/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const user = await User.findOne({ email: email }, { pointsHistory: 1 });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Sort history by timestamp descending
+        const history = (user.pointsHistory || []).sort((a, b) => b.timestamp - a.timestamp);
+        
+        res.json({
+            success: true,
+            history: history
+        });
+        
+    } catch (error) {
+        console.error('Get points history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get points history: ' + error.message
         });
     }
 });
@@ -1023,6 +1120,12 @@ app.post('/claim-reward', async (req, res) => {
         
         // Deduct points from user
         user.points = user.points - reward.cost;
+        user.pointsHistory.push({
+            amount: -reward.cost,
+            type: 'reward_claim',
+            description: `Claimed reward: ${reward.title}`,
+            timestamp: new Date()
+        });
         await user.save();
         
         // Create claimed reward record

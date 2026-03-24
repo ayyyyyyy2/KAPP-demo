@@ -70,6 +70,12 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    pointsHistory: [{
+        amount: Number,
+        type: { type: String },
+        description: String,
+        timestamp: { type: Date, default: Date.now }
+    }],
     avatar: {
         hat: { type: String, default: 'none' },
         shirt: { type: String, default: 'default' },
@@ -387,54 +393,111 @@ app.post('/login', async (req, res) => {
 app.post('/create-offer', async (req, res) => {
     try {
         const { title, description, sent_by, receiver_email, points_amount } = req.body;
-        
-        // Validate receiver email exists
-        const receiver = await User.findOne({ email: receiver_email });
-        if (!receiver) {
+        const amount = parseInt(points_amount);
+
+        if (!Number.isFinite(amount) || amount <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Receiver email not found'
+                message: 'Invalid points amount'
             });
         }
-        
-        // Generate unique offer ID with proper numeric sorting
-        const offers = await Offer.find({}, { offer_id: 1 }).lean();
-        let nextOfferId = '1';
-        
-        if (offers.length > 0) {
-            // Convert offer_ids to numbers, sort numerically, and get the highest
-            const numericIds = offers
-                .map(offer => parseInt(offer.offer_id))
-                .filter(id => !isNaN(id))
-                .sort((a, b) => b - a); // Sort in descending order
-            
-            if (numericIds.length > 0) {
-                nextOfferId = (numericIds[0] + 1).toString();
-            }
+
+        const session = await mongoose.startSession();
+        let createdOffer = null;
+        let updatedSender = null;
+
+        try {
+            await session.withTransaction(async () => {
+                const receiver = await User.findOne({ email: receiver_email }).session(session);
+                if (!receiver) {
+                    const err = new Error('Receiver email not found');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                const sender = await User.findOne({ regd_no: sent_by }).session(session);
+                if (!sender) {
+                    const err = new Error('Sender not found');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                if ((sender.points || 0) < amount) {
+                    const err = new Error('Not enough points');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                let counter = await Counter.findOne({ _id: 'offerCreation' }).session(session);
+                if (!counter) {
+                    const maxOffer = await Offer.aggregate([
+                        { $addFields: { offer_id_num: { $toInt: '$offer_id' } } },
+                        { $sort: { offer_id_num: -1 } },
+                        { $limit: 1 },
+                        { $project: { offer_id_num: 1 } }
+                    ]).session(session);
+                    const currentMax = (maxOffer[0] && maxOffer[0].offer_id_num) ? maxOffer[0].offer_id_num : 0;
+                    counter = await Counter.findOneAndUpdate(
+                        { _id: 'offerCreation' },
+                        { $setOnInsert: { seq: currentMax } },
+                        { upsert: true, new: true, session }
+                    );
+                }
+
+                counter = await Counter.findOneAndUpdate(
+                    { _id: 'offerCreation' },
+                    { $inc: { seq: 1 } },
+                    { new: true, session }
+                );
+                const nextOfferId = String(counter.seq);
+
+                sender.points = (sender.points || 0) - amount;
+                sender.pointsHistory = sender.pointsHistory || [];
+                sender.pointsHistory.push({
+                    amount: -amount,
+                    type: 'sent_offer',
+                    description: `Sent offer: ${title} to ${receiver.name}`,
+                    timestamp: new Date()
+                });
+                await sender.save({ session });
+
+                const newOffer = new Offer({
+                    offer_id: nextOfferId,
+                    title,
+                    description,
+                    sent_by,
+                    receiver_email,
+                    points_amount: amount
+                });
+
+                await newOffer.save({ session });
+                createdOffer = newOffer;
+                updatedSender = sender;
+            });
+        } finally {
+            await session.endSession();
         }
-        
-        const newOffer = new Offer({
-            offer_id: nextOfferId,
-            title,
-            description,
-            sent_by,
-            receiver_email,
-            points_amount: parseInt(points_amount)
-        });
-        
-        await newOffer.save();
+
+        if (!createdOffer || !updatedSender) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to create offer'
+            });
+        }
         
         res.json({
             success: true,
             message: 'Offer created successfully!',
-            offer: newOffer
+            offer: createdOffer,
+            new_points: updatedSender.points
         });
         
     } catch (error) {
         console.error('Create offer error:', error);
-        res.status(500).json({
+        const status = error.statusCode || 500;
+        res.status(status).json({
             success: false,
-            message: 'Failed to create offer: ' + error.message
+            message: status === 500 ? ('Failed to create offer: ' + error.message) : error.message
         });
     }
 });
@@ -443,10 +506,34 @@ app.post('/create-offer', async (req, res) => {
 app.get('/get-offers/:email', async (req, res) => {
     try {
         const { email } = req.params;
-        const offers = await Offer.find({ 
-            receiver_email: email,
-            status: 'pending'
-        }).sort({ createdAt: -1 });
+        const offers = await Offer.aggregate([
+            { $match: { receiver_email: email, status: 'pending' } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sent_by',
+                    foreignField: 'regd_no',
+                    as: 'senderInfo'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$senderInfo',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    offer_id: 1,
+                    title: 1,
+                    description: 1,
+                    points_amount: 1,
+                    sent_by: { $ifNull: ['$senderInfo.name', '$sent_by'] },
+                    createdAt: 1
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ]);
         
         res.json({
             success: true,
@@ -466,49 +553,73 @@ app.get('/get-offers/:email', async (req, res) => {
 app.post('/claim-offer', async (req, res) => {
     try {
         const { offer_id, user_email } = req.body;
-        
-        // Find the offer
-        const offer = await Offer.findOne({ 
-            offer_id: offer_id,
-            receiver_email: user_email,
-            status: 'pending'
-        });
-        
-        if (!offer) {
-            return res.status(400).json({
-                success: false,
-                message: 'Offer not found or already claimed'
+
+        const session = await mongoose.startSession();
+        let newPoints = null;
+        let claimedAmount = null;
+
+        try {
+            await session.withTransaction(async () => {
+                const offer = await Offer.findOneAndUpdate(
+                    {
+                        offer_id: offer_id,
+                        receiver_email: user_email,
+                        status: 'pending'
+                    },
+                    {
+                        $set: {
+                            status: 'claimed',
+                            claimedAt: new Date()
+                        }
+                    },
+                    { new: false, session }
+                );
+
+                if (!offer) {
+                    const err = new Error('Offer not found or already claimed');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                const user = await User.findOne({ email: user_email }).session(session);
+                if (!user) {
+                    const err = new Error('User not found');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                const sender = await User.findOne({ regd_no: offer.sent_by }).session(session);
+                const senderName = sender ? sender.name : 'Unknown';
+
+                user.points = (user.points || 0) + offer.points_amount;
+                user.pointsHistory = user.pointsHistory || [];
+                user.pointsHistory.push({
+                    amount: offer.points_amount,
+                    type: 'claimed_offer',
+                    description: `Received points from ${senderName}: ${offer.title}`,
+                    timestamp: new Date()
+                });
+                await user.save({ session });
+
+                newPoints = user.points;
+                claimedAmount = offer.points_amount;
             });
+        } finally {
+            await session.endSession();
         }
-        
-        // Update user points
-        const user = await User.findOne({ email: user_email });
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-        
-        user.points = (user.points || 0) + offer.points_amount;
-        await user.save();
-        
-        // Mark offer as claimed and set claimedAt timestamp
-        offer.status = 'claimed';
-        offer.claimedAt = new Date();
-        await offer.save();
         
         res.json({
             success: true,
-            message: `Successfully claimed ${offer.points_amount} points!`,
-            new_points: user.points
+            message: `Successfully claimed ${claimedAmount} points!`,
+            new_points: newPoints
         });
         
     } catch (error) {
         console.error('Claim offer error:', error);
-        res.status(500).json({
+        const status = error.statusCode || 500;
+        res.status(status).json({
             success: false,
-            message: 'Failed to claim offer: ' + error.message
+            message: status === 500 ? ('Failed to claim offer: ' + error.message) : error.message
         });
     }
 });
@@ -550,6 +661,137 @@ app.get('/users', async (req, res) => {
             success: false,
             message: 'Failed to fetch users',
             error: error.message
+        });
+    }
+});
+
+app.get('/get-points-history/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const user = await User.findOne({ email: email }, { pointsHistory: 1, regd_no: 1 });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const existingHistory = Array.isArray(user.pointsHistory) ? user.pointsHistory : [];
+        const regdNo = user.regd_no;
+
+        const [sentOffers, receivedOffers, claimedRewards] = await Promise.all([
+            Offer.aggregate([
+                { $match: { sent_by: regdNo } },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'receiver_email',
+                        foreignField: 'email',
+                        as: 'receiverInfo'
+                    }
+                },
+                { $unwind: { path: '$receiverInfo', preserveNullAndEmptyArrays: true } },
+                {
+                    $project: {
+                        offer_id: 1,
+                        title: 1,
+                        points_amount: 1,
+                        receiver_email: 1,
+                        receiver_name: { $ifNull: ['$receiverInfo.name', '$receiver_email'] },
+                        createdAt: 1
+                    }
+                }
+            ]),
+            Offer.aggregate([
+                { $match: { receiver_email: email, status: 'claimed' } },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'sent_by',
+                        foreignField: 'regd_no',
+                        as: 'senderInfo'
+                    }
+                },
+                { $unwind: { path: '$senderInfo', preserveNullAndEmptyArrays: true } },
+                {
+                    $project: {
+                        offer_id: 1,
+                        title: 1,
+                        points_amount: 1,
+                        sender_name: { $ifNull: ['$senderInfo.name', '$sent_by'] },
+                        claimedAt: 1,
+                        createdAt: 1
+                    }
+                }
+            ]),
+            ClaimedReward.find({ user_email: email }, { reward_title: 1, reward_cost: 1, vendor: 1, claimedAt: 1 }).lean()
+        ]);
+
+        const derivedHistory = [
+            ...(sentOffers || []).map(offer => ({
+                amount: -(offer.points_amount || 0),
+                type: 'sent_offer',
+                description: `Sent offer: ${offer.title} to ${offer.receiver_name}`,
+                timestamp: offer.createdAt || new Date(),
+                offer_id: offer.offer_id
+            })),
+            ...(receivedOffers || []).map(offer => ({
+                amount: offer.points_amount || 0,
+                type: 'claimed_offer',
+                description: `Received points from ${offer.sender_name}: ${offer.title}`,
+                timestamp: offer.claimedAt || offer.createdAt || new Date(),
+                offer_id: offer.offer_id
+            })),
+            ...(claimedRewards || []).map(reward => ({
+                amount: -(reward.reward_cost || 0),
+                type: 'reward_claim',
+                description: `Claimed reward: ${reward.reward_title} (${reward.vendor})`,
+                timestamp: reward.claimedAt || new Date()
+            }))
+        ];
+
+        const normalizedExisting = (existingHistory || []).map(entry => ({
+            amount: entry.amount || 0,
+            type: entry.type,
+            description: entry.description,
+            timestamp: entry.timestamp || entry.createdAt || new Date()
+        }));
+
+        const merged = new Map();
+        for (const entry of [...normalizedExisting, ...derivedHistory]) {
+            const amount = Number(entry.amount || 0);
+            const type = entry.type || 'unknown';
+            const timestampMs = new Date(entry.timestamp || Date.now()).getTime();
+            const offerId = entry.offer_id ? String(entry.offer_id) : '';
+            const description = entry.description ? String(entry.description) : '';
+            const key = offerId
+                ? `${type}:offer:${offerId}:${amount}`
+                : `${type}:desc:${description}:${timestampMs}:${amount}`;
+            if (!merged.has(key)) {
+                merged.set(key, {
+                    ...entry,
+                    amount,
+                    type,
+                    description,
+                    timestamp: new Date(timestampMs)
+                });
+            }
+        }
+
+        const history = Array.from(merged.values()).sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        res.json({
+            success: true,
+            history: history
+        });
+    } catch (error) {
+        console.error('Get points history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get points history: ' + error.message
         });
     }
 });
@@ -865,95 +1107,105 @@ const ClaimedReward = mongoose.model('ClaimedReward', claimedRewardSchema, 'rewa
 app.post('/claim-reward', async (req, res) => {
     try {
         const { reward_id, user_email, user_name } = req.body;
-        
-        // Find the reward
-        const reward = await Reward.findOne({ 
-            reward_id: reward_id,
-            status: 'active'
-        });
-        
-        if (!reward) {
-            return res.status(400).json({
-                success: false,
-                message: 'Reward not found or inactive'
-            });
-        }
-        
-        // Find the user
-        const user = await User.findOne({ email: user_email });
-        if (!user) {
-            return res.status(400).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-        
-        // Check if user has enough points
-        if (user.points < reward.cost) {
-            return res.status(400).json({
-                success: false,
-                message: `Insufficient points. You need ${reward.cost} points but only have ${user.points}.`
-            });
-        }
-        
-        // Generate unique claim ID using atomic counter
-        // Scalable approach: only check ClaimedReward collection if counter doesn't exist
-        let counterDoc = await Counter.findOne({ _id: 'claimedReward' });
-        
-        if (!counterDoc) {
-            // First time setup or counter lost: sync with existing claimed rewards
-            const maxDoc = await ClaimedReward.aggregate([
-                { $addFields: { claim_id_num: { $toInt: '$claim_id' } } },
-                { $sort: { claim_id_num: -1 } },
-                { $limit: 1 },
-                { $project: { claim_id_num: 1 } }
-            ]);
-            const currentMax = (maxDoc[0] && maxDoc[0].claim_id_num) ? maxDoc[0].claim_id_num : 0;
-            counterDoc = await Counter.findOneAndUpdate(
-                { _id: 'claimedReward' },
-                { $setOnInsert: { seq: currentMax } },
-                { upsert: true, new: true }
-            );
-        }
+        const session = await mongoose.startSession();
+        let newPoints = null;
+        let claimedReward = null;
+        let rewardTitle = null;
+        let rewardCost = null;
 
-        // Atomically increment and get new ID
-        counterDoc = await Counter.findOneAndUpdate(
-            { _id: 'claimedReward' },
-            { $inc: { seq: 1 } },
-            { new: true }
-        );
-        const nextClaimId = String(counterDoc.seq);
-        console.log('Generated claim_id for reward claim:', nextClaimId);
-        
-        // Deduct points from user
-        user.points = user.points - reward.cost;
-        await user.save();
-        
-        // Create claimed reward record
-        const claimedReward = new ClaimedReward({
-            claim_id: nextClaimId,
-            reward_id: reward.reward_id,
-            user_email: user_email,
-            user_name: user_name,
-            reward_title: reward.title,
-            reward_cost: reward.cost,
-            vendor: reward.vendor
-        });
-        
-        await claimedReward.save();
+        try {
+            await session.withTransaction(async () => {
+                const reward = await Reward.findOne({
+                    reward_id: reward_id,
+                    status: 'active'
+                }).session(session);
+
+                if (!reward) {
+                    const err = new Error('Reward not found or inactive');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                const user = await User.findOne({ email: user_email }).session(session);
+                if (!user) {
+                    const err = new Error('User not found');
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                if ((user.points || 0) < reward.cost) {
+                    const err = new Error(`Insufficient points. You need ${reward.cost} points but only have ${user.points}.`);
+                    err.statusCode = 400;
+                    throw err;
+                }
+
+                let counterDoc = await Counter.findOne({ _id: 'claimedReward' }).session(session);
+                if (!counterDoc) {
+                    const maxDoc = await ClaimedReward.aggregate([
+                        { $addFields: { claim_id_num: { $toInt: '$claim_id' } } },
+                        { $sort: { claim_id_num: -1 } },
+                        { $limit: 1 },
+                        { $project: { claim_id_num: 1 } }
+                    ]).session(session);
+                    const currentMax = (maxDoc[0] && maxDoc[0].claim_id_num) ? maxDoc[0].claim_id_num : 0;
+                    counterDoc = await Counter.findOneAndUpdate(
+                        { _id: 'claimedReward' },
+                        { $setOnInsert: { seq: currentMax } },
+                        { upsert: true, new: true, session }
+                    );
+                }
+
+                counterDoc = await Counter.findOneAndUpdate(
+                    { _id: 'claimedReward' },
+                    { $inc: { seq: 1 } },
+                    { new: true, session }
+                );
+                const nextClaimId = String(counterDoc.seq);
+
+                user.points = (user.points || 0) - reward.cost;
+                user.pointsHistory = user.pointsHistory || [];
+                user.pointsHistory.push({
+                    amount: -reward.cost,
+                    type: 'reward_claim',
+                    description: `Claimed reward: ${reward.title} (${reward.vendor})`,
+                    timestamp: new Date()
+                });
+                await user.save({ session });
+
+                const created = new ClaimedReward({
+                    claim_id: nextClaimId,
+                    reward_id: reward.reward_id,
+                    user_email: user_email,
+                    user_name: user_name,
+                    reward_title: reward.title,
+                    reward_cost: reward.cost,
+                    vendor: reward.vendor
+                });
+
+                await created.save({ session });
+
+                newPoints = user.points;
+                claimedReward = created;
+                rewardTitle = reward.title;
+                rewardCost = reward.cost;
+            });
+        } finally {
+            await session.endSession();
+        }
         
         res.json({
             success: true,
-            message: `Successfully claimed ${reward.title}! ${reward.cost} points deducted.`,
-            new_points: user.points,
+            message: `Successfully claimed ${rewardTitle}! ${rewardCost} points deducted.`,
+            new_points: newPoints,
             claimed_reward: claimedReward
         });
         
     } catch (error) {
         console.error('Claim reward error:', error);
-        res.status(500).json({
+        const status = error.statusCode || 500;
+        res.status(status).json({
             success: false,
-            message: 'Failed to claim reward: ' + error.message
+            message: status === 500 ? ('Failed to claim reward: ' + error.message) : error.message
         });
     }
 });
