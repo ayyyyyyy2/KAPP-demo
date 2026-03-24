@@ -21,25 +21,31 @@
 
     <!-- Claim Reward Modal -->
     <div id="claimModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalRewardTitle">Claim Reward</h2>
-                <span class="close" onclick="closeClaimModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div id="modalRewardImage" class="modal-reward-image"></div>
-                <p id="modalRewardDescription"></p>
-                <div class="modal-reward-details">
-                    <span id="modalRewardCost" class="modal-cost"></span>
-                    <span id="modalRewardVendor" class="modal-vendor"></span>
+        <div class="modal-content liquid-glass">
+            <div id="modalRewardImage" class="modal-full-image"></div>
+            <span class="close-overlay" onclick="closeClaimModal()">&times;</span>
+            
+            <div class="modal-body pastel-body">
+                <h2 id="modalRewardTitle" class="pastel-title"></h2>
+                <p id="modalRewardDescription" class="pastel-description"></p>
+                
+                <div class="modal-cost-container">
+                    <span id="modalRewardCostValue" class="pastel-cost-number"></span>
+                    <span class="banana-emoji">🍌</span>
                 </div>
-                <div class="user-points">
-                    <span>Your Points: <span id="userPointsDisplay">0</span></span>
+                
+                <div class="modal-vendor-pin">
+                    <span id="modalRewardVendor"></span>
+                </div>
+
+                <div class="user-points-pastel">
+                    Your Points: <span id="userPointsDisplay">0</span>
                 </div>
             </div>
+            
             <div class="modal-footer">
-                <button id="claimButton" class="claim-btn" onmousedown="startClaim()" onmouseup="stopClaim()" onmouseleave="stopClaim()" ontouchstart="startClaim()" ontouchend="stopClaim()">
-                    <span id="claimButtonText">Hold to Claim</span>
+                <button id="claimButton" class="claim-btn-pastel" onmousedown="startClaim()" onmouseup="stopClaim()" onmouseleave="stopClaim()" ontouchstart="startClaim()" ontouchend="stopClaim()">
+                    <span id="claimButtonText">HOLD TO CLAIM</span>
                     <div id="loadingWheel" class="loading-wheel hidden"></div>
                     <div id="progressBar" class="progress-bar">
                         <div id="progressFill" class="progress-fill"></div>
@@ -130,65 +136,71 @@
             
             document.getElementById('modalRewardTitle').textContent = title;
             document.getElementById('modalRewardDescription').textContent = description;
-            document.getElementById('modalRewardCost').textContent = `💰 ${cost} points`;
+            document.getElementById('modalRewardCostValue').textContent = cost;
             document.getElementById('modalRewardVendor').textContent = `📍 ${vendor}`;
             
             const imageContainer = document.getElementById('modalRewardImage');
             if (imageUrl) {
-                imageContainer.innerHTML = `<img src="${imageUrl}" alt="${title}" class="modal-image">`;
+                imageContainer.innerHTML = `<img src="${imageUrl}" alt="${title}">`;
             } else {
                 imageContainer.innerHTML = '<div class="modal-no-image">📦</div>';
             }
             
-            loadUserPoints();
-            resetClaimButton();
+            document.getElementById('userPointsDisplay').textContent = userData.points;
             document.getElementById('claimModal').style.display = 'block';
+            
+            // Reset progress
+            claimProgress = 0;
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('claimButtonText').textContent = 'HOLD TO CLAIM';
         }
-        
+
         function closeClaimModal() {
             document.getElementById('claimModal').style.display = 'none';
             stopClaim();
-            currentReward = null;
         }
-        
+
         function startClaim() {
-            if (!currentReward || claimTimer) return;
-            
-            // Check if user has enough points
             if (userData.points < currentReward.cost) {
-                alert(`Insufficient points! You need ${currentReward.cost} points but only have ${userData.points}.`);
+                alert('Not enough points!');
                 return;
             }
+
+            const btn = document.getElementById('claimButton');
+            const txt = document.getElementById('claimButtonText');
+            const fill = document.getElementById('progressFill');
             
-            const button = document.getElementById('claimButton');
-            const text = document.getElementById('claimButtonText');
-            const wheel = document.getElementById('loadingWheel');
-            const progressFill = document.getElementById('progressFill');
+            btn.classList.add('claiming');
+            txt.textContent = 'CLAIMING...';
             
-            button.classList.add('claiming');
-            text.textContent = 'Hold to Claim...';
-            wheel.classList.remove('hidden');
-            
-            claimProgress = 0;
-            progressFill.style.width = '0%';
+            const startTime = Date.now();
             
             claimTimer = setInterval(() => {
-                claimProgress += 50; // Update every 50ms
-                const percentage = (claimProgress / CLAIM_DURATION) * 100;
-                progressFill.style.width = percentage + '%';
+                const elapsed = Date.now() - startTime;
+                claimProgress = Math.min((elapsed / CLAIM_DURATION) * 100, 100);
+                fill.style.width = `${claimProgress}%`;
                 
-                if (claimProgress >= CLAIM_DURATION) {
+                if (claimProgress >= 100) {
+                    clearInterval(claimTimer);
                     completeClaim();
                 }
             }, 50);
         }
-        
+
         function stopClaim() {
             if (claimTimer) {
                 clearInterval(claimTimer);
                 claimTimer = null;
             }
-            resetClaimButton();
+            
+            const btn = document.getElementById('claimButton');
+            const txt = document.getElementById('claimButtonText');
+            const fill = document.getElementById('progressFill');
+            
+            if (btn) btn.classList.remove('claiming');
+            if (txt) txt.textContent = 'HOLD TO CLAIM';
+            if (fill) fill.style.width = '0%';
+            claimProgress = 0;
         }
         
         function resetClaimButton() {

@@ -386,10 +386,34 @@ app.post('/create-offer', async (req, res) => {
 app.get('/get-offers/:email', async (req, res) => {
     try {
         const { email } = req.params;
-        const offers = await Offer.find({ 
-            receiver_email: email,
-            status: 'pending'
-        }).sort({ createdAt: -1 });
+        const offers = await Offer.aggregate([
+            { $match: { receiver_email: email, status: 'pending' } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sent_by',
+                    foreignField: 'regd_no', // Changed from 'email' to 'regd_no' to correctly find user name
+                    as: 'senderInfo'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$senderInfo',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    offer_id: 1,
+                    title: 1,
+                    description: 1,
+                    points_amount: 1,
+                    sent_by: { $ifNull: ['$senderInfo.name', '$sent_by'] }, // Use name if found, else original email
+                    createdAt: 1
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ]);
         
         res.json({
             success: true,
@@ -502,10 +526,35 @@ app.get('/users', async (req, res) => {
 app.get('/get-claimed-offers/:email', async (req, res) => {
     try {
         const { email } = req.params;
-        const claimedOffers = await Offer.find({ 
-            receiver_email: email,
-            status: 'claimed'
-        }).sort({ claimedAt: -1 }); // Sort by when claimed, not when created
+        const claimedOffers = await Offer.aggregate([
+            { $match: { receiver_email: email, status: 'claimed' } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sent_by',
+                    foreignField: 'regd_no',
+                    as: 'senderInfo'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$senderInfo',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    offer_id: 1,
+                    title: 1,
+                    description: 1,
+                    points_amount: 1,
+                    sent_by: { $ifNull: ['$senderInfo.name', '$sent_by'] },
+                    claimedAt: 1,
+                    createdAt: 1
+                }
+            },
+            { $sort: { claimedAt: -1 } }
+        ]);
         
         res.json({
             success: true,
@@ -524,7 +573,35 @@ app.get('/get-claimed-offers/:email', async (req, res) => {
 // Get all offers from demo.offers collection
 app.get('/get-all-offers', async (req, res) => {
     try {
-        const allOffers = await Offer.find({}).sort({ createdAt: -1 });
+        const allOffers = await Offer.aggregate([
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'sent_by',
+                    foreignField: 'regd_no',
+                    as: 'senderInfo'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$senderInfo',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    offer_id: 1,
+                    title: 1,
+                    description: 1,
+                    points_amount: 1,
+                    sent_by: { $ifNull: ['$senderInfo.name', '$sent_by'] },
+                    receiver_email: 1,
+                    status: 1,
+                    createdAt: 1
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ]);
         
         res.json({
             success: true,
@@ -722,6 +799,41 @@ app.post('/deactivate-reward', async (req, res) => {
     }
 });
 
+// Update reward endpoint
+app.post('/update-reward', async (req, res) => {
+    try {
+        const { reward_id, title, description, cost, image_url } = req.body;
+        
+        const reward = await Reward.findOne({ reward_id: reward_id });
+        if (!reward) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reward not found'
+            });
+        }
+        
+        if (title) reward.title = title;
+        if (description) reward.description = description;
+        if (cost) reward.cost = parseInt(cost);
+        if (image_url !== undefined) reward.image_url = image_url;
+        
+        await reward.save();
+        
+        res.json({
+            success: true,
+            message: 'Reward updated successfully!',
+            reward: reward
+        });
+        
+    } catch (error) {
+        console.error('Update reward error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update reward: ' + error.message
+        });
+    }
+});
+
 app.post('/reactivate-reward', async (req, res) => {
     try {
         const { reward_id } = req.body;
@@ -755,9 +867,42 @@ app.post('/reactivate-reward', async (req, res) => {
 app.get('/get-claimed-rewards/:email', async (req, res) => {
     try {
         const { email } = req.params;
-        const claimedRewards = await ClaimedReward.find({ 
-            user_email: email
-        }).sort({ claimedAt: -1 }); // Sort by most recent first
+        const claimedRewards = await ClaimedReward.aggregate([
+            { $match: { user_email: email } },
+            {
+                $addFields: {
+                    reward_id_str: { $toString: '$reward_id' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'rewards',
+                    localField: 'reward_id_str',
+                    foreignField: 'reward_id',
+                    as: 'rewardDetails'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$rewardDetails',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    claim_id: 1,
+                    reward_id: 1,
+                    user_email: 1,
+                    user_name: 1,
+                    reward_title: 1,
+                    reward_cost: 1,
+                    vendor: 1,
+                    claimedAt: 1,
+                    image_url: '$rewardDetails.image_url'
+                }
+            },
+            { $sort: { claimedAt: -1 } }
+        ]);
         
         res.json({
             success: true,

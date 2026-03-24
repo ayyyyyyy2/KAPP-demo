@@ -195,16 +195,27 @@ body {
 }
 
 .modal-content {
-    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    background-color: #fefefe;
     margin: 5% auto;
     padding: 30px;
     border: none;
-    border-radius: 15px;
+    border-radius: 20px;
     width: 90%;
     max-width: 500px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     position: relative;
     animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Liquid Glass Modal */
+.liquid-glass {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 @keyframes modalSlideIn {
@@ -235,7 +246,7 @@ body {
 
 .modal h2 {
     color: #000000;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     font-size: 24px;
     text-align: center;
 }
@@ -244,28 +255,32 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    text-align: left;
 }
 
 .modal label {
     color: #000000;
     font-weight: 600;
-    margin-bottom: 5px;
+    font-size: 14px;
 }
 
-.modal input,
+.modal input[type="text"],
+.modal input[type="number"],
 .modal textarea {
     padding: 12px;
-    border: 2px solid rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
     font-size: 14px;
-    background: rgba(255, 255, 255, 0.9);
-    transition: border-color 0.3s ease;
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.3s ease;
 }
 
 .modal input:focus,
 .modal textarea:focus {
     outline: none;
     border-color: #000000;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1);
 }
 
 .modal textarea {
@@ -273,7 +288,26 @@ body {
     min-height: 80px;
 }
 
-.modal button[type="submit"] {
+.save-btn {
+    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+    color: #ffffff;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+}
+
+.modal button[type="submit"]:not(.save-btn) {
     background: linear-gradient(135deg, #000000 0%, #333333 100%);
     color: #ffffff;
     padding: 15px;
@@ -288,7 +322,7 @@ body {
     margin-top: 10px;
 }
 
-.modal button[type="submit"]:hover {
+.modal button[type="submit"]:not(.save-btn):hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
 }

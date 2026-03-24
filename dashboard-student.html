@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard - Welcome</title>
     <link rel="stylesheet" href="dashboard-student.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
     <div class="welcome-container">
+        <!-- Personal QR Button -->
+        <div class="qr-btn-container" onclick="openPersonalQR()">
+            <span class="qr-icon">📱</span>
+        </div>
+        
         <div class="points-display" onclick="togglePointsHistory()">
             <h2>🍌 Points: <span id="pointCount">0</span></h2>
         </div>
@@ -40,6 +46,7 @@
             </div>
             <div class="action-buttons">
                 <button class="action-btn" onclick="openYourOffers()">Your Offers</button>
+                <button class="action-btn" onclick="openCreateOffer()">Send Offer</button>
                 <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
@@ -53,7 +60,7 @@
     
     <!-- Avatar Customization Modal -->
     <div id="avatarModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content liquid-glass">
             <span class="close" onclick="closeAvatarModal()">&times;</span>
             <h2>Customize Avatar</h2>
             
@@ -97,25 +104,91 @@
         </div>
     </div>
 
+    <!-- Create Offer Modal -->
+    <div id="createOfferModal" class="modal">
+        <div class="modal-content liquid-glass">
+            <span class="close" onclick="closeCreateOffer()">&times;</span>
+            <h2>Create an Offer</h2>
+            <form id="createOfferForm">
+                <div class="form-group">
+                    <label for="offerTitle">Title:</label>
+                    <input type="text" id="offerTitle" placeholder="Enter offer title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="offerDescription">Description:</label>
+                    <textarea id="offerDescription" placeholder="Describe the offer" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="receiverEmail">Receiver Email:</label>
+                    <div class="input-with-icon">
+                        <input type="email" id="receiverEmail" placeholder="student@example.com" required>
+                        <div class="camera-btn" onclick="openQRScanner()">
+                            <span class="camera-icon">📷</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pointsAmount">Points Amount:</label>
+                    <div class="points-input-wrapper">
+                        <input type="number" id="pointsAmount" min="1" max="100" placeholder="Enter amount" oninput="syncSliderFromInput(this.value)" required>
+                        <div class="slider-toggle" onclick="togglePointsSlider()">
+                            <span class="slider-icon">⚡</span>
+                        </div>
+                        <div id="pointsSliderContainer" class="points-slider-container hidden">
+                            <input type="range" id="pointsSlider" min="1" max="100" value="1" oninput="syncPointsFromSlider(this.value)">
+                            <div class="slider-value-display"><span id="sliderValue">1</span> 🍌</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="submit-btn">Create Offer</button>
+            </form>
+        </div>
+    </div>
+    
     <!-- Your Offers Modal -->
     <div id="yourOffersModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content liquid-glass">
             <span class="close" onclick="closeYourOffers()">&times;</span>
             <h2>Your Offers</h2>
-            <div id="offersList">
-                <p>Loading offers...</p>
-            </div>
+            <div id="offersList" class="offers-container"></div>
         </div>
     </div>
     
     <!-- My Rewards Modal -->
     <div id="myRewardsModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content liquid-glass">
             <span class="close" onclick="closeMyRewards()">&times;</span>
             <h2>My Claimed Rewards</h2>
-            <div id="claimedRewardsList">
+            <div id="claimedRewardsList" class="rewards-container">
                 <p>Loading claimed rewards...</p>
             </div>
+        </div>
+    </div>
+    
+    <!-- Personal QR Modal -->
+    <div id="personalQRModal" class="modal">
+        <div class="modal-content liquid-glass qr-modal-content">
+            <span class="close" onclick="closePersonalQR()">&times;</span>
+            <h2 class="qr-modal-title">Your Personal ID</h2>
+            <div id="personalQRCode" class="qr-display-area">
+                <!-- QR code will be generated here -->
+            </div>
+            <p class="qr-modal-email" id="qrUserEmail"></p>
+            <p class="qr-modal-hint">Show this to a teacher or student to receive points!</p>
+        </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div id="qrScannerModal" class="modal">
+        <div class="modal-content liquid-glass scanner-modal-content">
+            <span class="close" onclick="closeQRScanner()">&times;</span>
+            <h2 class="qr-modal-title">Scan QR Code</h2>
+            <div id="qrReader" class="scanner-area"></div>
+            <p class="qr-modal-hint">Point your camera at a personal QR code</p>
         </div>
     </div>
     
@@ -363,11 +436,11 @@
                     } else {
                         offersList.innerHTML = result.offers.map(offer => `
                             <div class="offer-item">
-                                <h3>${offer.title}</h3>
-                                <p style="font-style: italic;">"${offer.description}"</p>
-                                <p><strong>Points:</strong> ${offer.points_amount} 🍌</p>
-                                <p><strong>From:</strong> ${offer.sent_by}</p>
-                                <button onclick="claimOffer('${offer.offer_id}')">Claim Offer</button>
+                                <div class="offer-title">${offer.title}</div>
+                                <div class="offer-description">"${offer.description}"</div>
+                                <div class="offer-points">${offer.points_amount} 🍌</div>
+                                <div class="offer-meta">From: <strong>${offer.sent_by}</strong></div>
+                                <button class="claim-btn" onclick="claimOffer('${offer.offer_id}')">Claim Offer</button>
                             </div>
                         `).join('');
                     }
@@ -377,6 +450,68 @@
             } catch (error) {
                 document.getElementById('offersList').innerHTML = '<p>Error loading offers.</p>';
             }
+        }
+        
+        // Create offer functionality
+        function openCreateOffer() {
+            document.getElementById('createOfferModal').style.display = 'block';
+        }
+        
+        function closeCreateOffer() {
+            document.getElementById('createOfferModal').style.display = 'none';
+        }
+        
+        document.getElementById('createOfferForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('offerTitle').value,
+                description: document.getElementById('offerDescription').value,
+                sent_by: currentUserId,
+                receiver_email: document.getElementById('receiverEmail').value,
+                points_amount: document.getElementById('pointsAmount').value
+            };
+            
+            try {
+                const response = await fetch('/create-offer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    closeCreateOffer();
+                    document.getElementById('createOfferForm').reset();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to create offer. Please try again.');
+            }
+        });
+        
+        // Slider Logic
+        function togglePointsSlider() {
+            const container = document.getElementById('pointsSliderContainer');
+            container.classList.toggle('hidden');
+        }
+
+        function syncPointsFromSlider(value) {
+            document.getElementById('pointsAmount').value = value;
+            document.getElementById('sliderValue').textContent = value;
+        }
+
+        function syncSliderFromInput(value) {
+            const slider = document.getElementById('pointsSlider');
+            const display = document.getElementById('sliderValue');
+            const val = Math.min(Math.max(value, 1), 100);
+            slider.value = val;
+            display.textContent = val;
         }
         
         async function claimOffer(offerId) {
@@ -418,8 +553,73 @@
         function goToAllRewards() {
             window.location.href = '/all-rewards';
         }
-        
-        // Add these functions before the closing script tag
+
+        function openPersonalQR() {
+            const modal = document.getElementById('personalQRModal');
+            const qrContainer = document.getElementById('personalQRCode');
+            const emailDisplay = document.getElementById('qrUserEmail');
+            
+            modal.style.display = 'block';
+            emailDisplay.textContent = currentUserEmail;
+            
+            // Clear previous QR
+            qrContainer.innerHTML = '';
+            
+            // Generate QR code using an external API
+            const qrImg = document.createElement('img');
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${currentUserEmail}`;
+            qrImg.alt = "Personal QR Code";
+            qrContainer.appendChild(qrImg);
+        }
+
+        function closePersonalQR() {
+             document.getElementById('personalQRModal').style.display = 'none';
+         }
+         
+         let html5QrCode = null;
+
+         async function openQRScanner() {
+             document.getElementById('qrScannerModal').style.display = 'block';
+             
+             if (!html5QrCode) {
+                 html5QrCode = new Html5Qrcode("qrReader");
+             }
+             
+             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+             
+             try {
+                 await html5QrCode.start(
+                     { facingMode: "environment" }, 
+                     config, 
+                     (decodedText) => {
+                         // Successfully scanned
+                         document.getElementById('receiverEmail').value = decodedText;
+                         closeQRScanner();
+                         // Visual feedback
+                         const emailInput = document.getElementById('receiverEmail');
+                         emailInput.style.backgroundColor = 'rgba(129, 199, 132, 0.2)';
+                         setTimeout(() => emailInput.style.backgroundColor = '', 1000);
+                     }
+                 );
+             } catch (err) {
+                 console.error("Camera access error:", err);
+                 alert("Could not access camera. Please check permissions.");
+                 closeQRScanner();
+             }
+         }
+
+         async function closeQRScanner() {
+             document.getElementById('qrScannerModal').style.display = 'none';
+             if (html5QrCode && html5QrCode.isScanning) {
+                 try {
+                     await html5QrCode.stop();
+                 } catch (err) {
+                     console.error("Stop scanning error:", err);
+                 }
+             }
+         }
+         
+         // Add these functions before the closing script tag
         async function openMyRewards() {
             document.getElementById('myRewardsModal').style.display = 'block';
             await loadClaimedRewards();
@@ -441,12 +641,24 @@
                         claimedRewardsList.innerHTML = '<p>You haven\'t claimed any rewards yet.</p>';
                     } else {
                         claimedRewardsList.innerHTML = result.claimed_rewards.map(reward => `
-                            <div class="claimed-reward-item">
-                                <h4>${reward.reward_title}</h4>
-                                <p><strong>Vendor:</strong> ${reward.vendor}</p>
-                                <p><strong>Cost:</strong> ${reward.reward_cost} points</p>
-                                <p><strong>Claimed on:</strong> ${new Date(reward.claimedAt).toLocaleDateString()}</p>
-                                <p><strong>Claim ID:</strong> ${reward.claim_id}</p>
+                            <div class="claimed-reward-item liquid-glass">
+                                <h3 class="reward-title">${reward.reward_title}</h3>
+                                <div class="reward-visual">
+                                    <div class="reward-img-container">
+                                        <img src="${reward.image_url || 'https://img.icons8.com/fluency/200/gift--v1.png'}" 
+                                             class="reward-img" 
+                                             alt="${reward.reward_title}"
+                                             onerror="this.onerror=null;this.src='https://img.icons8.com/fluency/200/gift--v1.png';">
+                                    </div>
+                                    <div class="reward-qr">
+                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${reward.claim_id}" alt="QR Code">
+                                        <small class="qr-label">CLAIM ID: ${reward.claim_id}</small>
+                                    </div>
+                                </div>
+                                <div class="reward-meta">
+                                    <p class="meta-vendor"><i>${reward.vendor}</i></p>
+                                    <p class="meta-date"><i>Claimed on: ${new Date(reward.claimedAt).toLocaleDateString()}</i></p>
+                                </div>
                             </div>
                         `).join('');
                     }

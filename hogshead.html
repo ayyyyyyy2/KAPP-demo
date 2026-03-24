@@ -92,11 +92,38 @@
                 <input type="number" id="rewardCost" min="1" required>
                 
                 <label for="rewardImage">Image (JPG only):</label>
-                <input type="file" id="rewardImage" accept=".jpg,.jpeg" onchange="previewImage(event)">
+                <input type="file" id="rewardImage" accept=".jpg,.jpeg" onchange="previewImage(event, 'imagePreview')">
                 
                 <div id="imagePreview" class="image-preview"></div>
                 
                 <button type="submit">Create Reward</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Reward Modal -->
+    <div id="editRewardModal" class="modal">
+        <div class="modal-content liquid-glass">
+            <span class="close" onclick="closeEditReward()">&times;</span>
+            <h2>Edit Reward</h2>
+            <form id="editRewardForm">
+                <input type="hidden" id="editRewardId">
+                
+                <label for="editRewardTitle">Title:</label>
+                <input type="text" id="editRewardTitle" required>
+                
+                <label for="editRewardDescription">Description:</label>
+                <textarea id="editRewardDescription" required></textarea>
+                
+                <label for="editRewardCost">Cost (Points):</label>
+                <input type="number" id="editRewardCost" min="1" required>
+                
+                <label for="editRewardImage">Change Image (Optional):</label>
+                <input type="file" id="editRewardImage" accept=".jpg,.jpeg" onchange="previewImage(event, 'editImagePreview')">
+                
+                <div id="editImagePreview" class="image-preview"></div>
+                
+                <button type="submit" class="save-btn">Save Changes</button>
             </form>
         </div>
     </div>
@@ -116,9 +143,40 @@
             document.getElementById('imagePreview').innerHTML = '';
         }
         
-        function previewImage(event) {
+        function openEditReward(rewardId, title, description, cost, imageUrl) {
+            document.getElementById('editRewardId').value = rewardId;
+            document.getElementById('editRewardTitle').value = title;
+            document.getElementById('editRewardDescription').value = description;
+            document.getElementById('editRewardCost').value = cost;
+            document.getElementById('editImagePreview').innerHTML = imageUrl ? `<img src="${imageUrl}" style="max-width: 200px; max-height: 200px; border-radius: 8px;">` : '';
+            document.getElementById('editRewardModal').style.display = 'block';
+        }
+
+        function closeEditReward() {
+            document.getElementById('editRewardModal').style.display = 'none';
+            document.getElementById('editRewardForm').reset();
+            document.getElementById('editImagePreview').innerHTML = '';
+        }
+
+        let editTimer = null;
+        const EDIT_DURATION = 1000;
+
+        function startEditTimer(rewardId, title, description, cost, imageUrl) {
+            editTimer = setTimeout(() => {
+                openEditReward(rewardId, title, description, cost, imageUrl);
+            }, EDIT_DURATION);
+        }
+
+        function cancelEditTimer() {
+            if (editTimer) {
+                clearTimeout(editTimer);
+                editTimer = null;
+            }
+        }
+
+        function previewImage(event, previewId) {
             const file = event.target.files[0];
-            const preview = document.getElementById('imagePreview');
+            const preview = document.getElementById(previewId);
             
             if (file) {
                 const reader = new FileReader();
@@ -165,11 +223,57 @@
                 if (result.success) {
                     alert(result.message);
                     closeCreateReward();
+                    loadVendorRewards(); // Refresh list
                 } else {
                     alert(result.message);
                 }
             } catch (error) {
                 alert('Failed to create reward. Please try again.');
+            }
+        });
+
+        // Edit Reward Submission
+        document.getElementById('editRewardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const imageFile = document.getElementById('editRewardImage').files[0];
+            let imageBase64 = null;
+            if (imageFile) {
+                imageBase64 = await convertToBase64(imageFile);
+            } else {
+                // Keep existing image if no new one selected
+                const existingImg = document.querySelector('#editImagePreview img');
+                imageBase64 = existingImg ? existingImg.src : null;
+            }
+            
+            const rewardData = {
+                reward_id: document.getElementById('editRewardId').value,
+                title: document.getElementById('editRewardTitle').value,
+                description: document.getElementById('editRewardDescription').value,
+                cost: document.getElementById('editRewardCost').value,
+                image_url: imageBase64
+            };
+            
+            try {
+                const response = await fetch('/update-reward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(rewardData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    closeEditReward();
+                    loadVendorRewards();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('Failed to update reward. Please try again.');
             }
         });
         
@@ -199,23 +303,37 @@
                 const rewardsGrid = document.getElementById('rewardsGrid');
                 
                 if (result.success && result.rewards.length > 0) {
-                    rewardsGrid.innerHTML = result.rewards.map(reward => `
-                        <div class="reward-bubble ${reward.status === 'inactive' ? 'inactive-reward' : ''}" data-reward-id="${reward.reward_id}">
-                            ${reward.image_url ? `<img src="${reward.image_url}" alt="${reward.title}" class="reward-image">` : '<div class="no-image">📦</div>'}
-                            <div class="reward-content">
-                                <h3 class="reward-title">${reward.title}</h3>
-                                <p class="reward-description">${reward.description}</p>
-                                <div class="reward-details">
-                                    <span class="reward-cost">💰 ${reward.cost} points</span>
-                                    ${reward.status === 'active' ? 
-                                        `<button class="delete-btn" onclick="deleteReward('${reward.reward_id}')">🗑️ Delete</button>` :
-                                        `<button class="reactivate-btn" onclick="reactivateReward('${reward.reward_id}')">↩️ Put Back</button>`
-                                    }
+                    rewardsGrid.innerHTML = result.rewards.map(reward => {
+                        const rId = reward.reward_id;
+                        const rTitle = reward.title.replace(/'/g, "\\'");
+                        const rDesc = reward.description.replace(/'/g, "\\'");
+                        const rCost = reward.cost;
+                        const rImg = (reward.image_url || '').replace(/'/g, "\\'");
+
+                        return `
+                            <div class="reward-bubble ${reward.status === 'inactive' ? 'inactive-reward' : ''}" 
+                                 data-reward-id="${rId}"
+                                 onmousedown="startEditTimer('${rId}', '${rTitle}', '${rDesc}', ${rCost}, '${rImg}')" 
+                                 onmouseup="cancelEditTimer()" 
+                                 onmouseleave="cancelEditTimer()"
+                                 ontouchstart="startEditTimer('${rId}', '${rTitle}', '${rDesc}', ${rCost}, '${rImg}')" 
+                                 ontouchend="cancelEditTimer()">
+                                ${reward.image_url ? `<img src="${reward.image_url}" alt="${reward.title}" class="reward-image">` : '<div class="no-image">📦</div>'}
+                                <div class="reward-content">
+                                    <h3 class="reward-title">${reward.title}</h3>
+                                    <p class="reward-description">${reward.description}</p>
+                                    <div class="reward-details">
+                                        <span class="reward-cost">💰 ${reward.cost} points</span>
+                                        ${reward.status === 'active' ? 
+                                            `<button class="delete-btn" onclick="deleteReward('${reward.reward_id}')">🗑️ Delete</button>` :
+                                            `<button class="reactivate-btn" onclick="reactivateReward('${reward.reward_id}')">↩️ Put Back</button>`
+                                        }
+                                    </div>
                                 </div>
+                                ${reward.status === 'inactive' ? '<div class="inactive-tape">INACTIVE</div>' : ''}
                             </div>
-                            ${reward.status === 'inactive' ? '<div class="inactive-tape">INACTIVE</div>' : ''}
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
                     rewardsGrid.innerHTML = '<div class="no-rewards">No rewards for this vendor.</div>';
                 }
