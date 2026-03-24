@@ -330,7 +330,9 @@
                 name: userName,
                 email: userEmail,
                 regd_no: userRegdNo,
-                points: userPoints
+                points: '∞',
+                role: 'admin',
+                unlimited: true
             };
             sessionStorage.setItem('adminUserData', JSON.stringify(userData));
             
@@ -341,7 +343,7 @@
                 <p><strong>Role:</strong> Administrator</p>
             `;
             
-            document.getElementById('pointCount').textContent = userPoints;
+            document.getElementById('pointCount').textContent = '∞';
         } else {
             // Try to load from sessionStorage if URL params are missing
             const storedData = sessionStorage.getItem('adminUserData');
@@ -353,7 +355,7 @@
                     <p><strong>Registration No:</strong> ${userData.regd_no}</p>
                     <p><strong>Role:</strong> Administrator</p>
                 `;
-                document.getElementById('pointCount').textContent = userData.points;
+                document.getElementById('pointCount').textContent = '∞';
                 currentUserEmail = userData.email;
                 currentUserId = userData.regd_no;
             }
@@ -484,18 +486,24 @@
                 const resp = await fetch(`/get-points/${currentUserEmail}`);
                 const data = await resp.json();
                 if (data && data.success) {
-                    updateDisplayedPoints(data.points);
+                    if (data.unlimited) {
+                        updateDisplayedPoints('∞');
+                    } else {
+                        updateDisplayedPoints(data.points);
+                    }
                 }
             } catch (_) {}
         }
 
         function updateDisplayedPoints(newPoints) {
-            document.getElementById('pointCount').textContent = newPoints;
+            document.getElementById('pointCount').textContent = '∞';
             try {
                 const storedData = sessionStorage.getItem('adminUserData');
                 if (storedData) {
                     const data = JSON.parse(storedData);
-                    data.points = String(newPoints);
+                    data.points = '∞';
+                    data.role = 'admin';
+                    data.unlimited = true;
                     sessionStorage.setItem('adminUserData', JSON.stringify(data));
                 }
             } catch (e) {}

@@ -123,8 +123,15 @@
                 const response = await fetch(`/get-points/${userData.email}`);
                 const result = await response.json();
                 if (result.success) {
-                    userData.points = result.points;
-                    document.getElementById('userPointsDisplay').textContent = result.points;
+                    if (result.unlimited) {
+                        userData.unlimited = true;
+                        userData.points = Number.POSITIVE_INFINITY;
+                        document.getElementById('userPointsDisplay').textContent = '∞';
+                    } else {
+                        userData.unlimited = false;
+                        userData.points = Number(result.points) || 0;
+                        document.getElementById('userPointsDisplay').textContent = String(userData.points);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading user points:', error);
@@ -146,7 +153,7 @@
                 imageContainer.innerHTML = '<div class="modal-no-image">📦</div>';
             }
             
-            document.getElementById('userPointsDisplay').textContent = userData.points;
+            document.getElementById('userPointsDisplay').textContent = userData.unlimited ? '∞' : String(userData.points);
             document.getElementById('claimModal').style.display = 'block';
             
             // Reset progress
@@ -161,7 +168,7 @@
         }
 
         function startClaim() {
-            if (userData.points < currentReward.cost) {
+            if (!userData.unlimited && userData.points < currentReward.cost) {
                 alert('Not enough points!');
                 return;
             }
@@ -236,17 +243,26 @@
                 
                 if (result.success) {
                     alert(result.message);
-                    userData.points = result.new_points;
+                    if (result.unlimited) {
+                        userData.unlimited = true;
+                        userData.points = Number.POSITIVE_INFINITY;
+                    } else {
+                        userData.unlimited = false;
+                        userData.points = Number(result.new_points) || 0;
+                    }
                     
                     // Update sessionStorage
                     if (sessionStorage.getItem('userData')) {
                         const storedData = JSON.parse(sessionStorage.getItem('userData'));
-                        storedData.points = result.new_points;
+                        storedData.points = userData.unlimited ? '∞' : userData.points;
+                        storedData.unlimited = userData.unlimited;
                         sessionStorage.setItem('userData', JSON.stringify(storedData));
                     }
                     if (sessionStorage.getItem('adminUserData')) {
                         const storedData = JSON.parse(sessionStorage.getItem('adminUserData'));
-                        storedData.points = result.new_points;
+                        storedData.points = '∞';
+                        storedData.unlimited = true;
+                        storedData.role = 'admin';
                         sessionStorage.setItem('adminUserData', JSON.stringify(storedData));
                     }
                     

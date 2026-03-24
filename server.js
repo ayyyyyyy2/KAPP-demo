@@ -356,9 +356,16 @@ app.post('/create-offer', async (req, res) => {
             });
         }
         
-        // Only deduct points for students ('user' role)
-        // Teachers and Admins might have unlimited points or a different balance system
-        if (sender.role === 'user') {
+        // Admin: unlimited points (no balance check and no deduction)
+        if (sender.role === 'admin') {
+            sender.pointsHistory.push({
+                amount: -amount,
+                type: 'sent_offer',
+                description: `Sent offer: ${title} to ${receiver.name}`,
+                timestamp: new Date()
+            });
+            await sender.save();
+        } else if (sender.role === 'user') {
             if ((sender.points || 0) < amount) {
                 return res.status(400).json({
                     success: false,
@@ -561,9 +568,18 @@ app.get('/get-points/:email', async (req, res) => {
             });
         }
         
+        if (user.role === 'admin') {
+            return res.json({
+                success: true,
+                points: null,
+                unlimited: true
+            });
+        }
+
         res.json({
             success: true,
-            points: user.points || 0
+            points: user.points || 0,
+            unlimited: false
         });
         
     } catch (error) {
@@ -1081,12 +1097,14 @@ app.post('/claim-reward', async (req, res) => {
             });
         }
         
-        // Check if user has enough points
-        if (user.points < reward.cost) {
-            return res.status(400).json({
-                success: false,
-                message: `Insufficient points. You need ${reward.cost} points but only have ${user.points}.`
-            });
+        if (user.role !== 'admin') {
+            // Check if user has enough points
+            if (user.points < reward.cost) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient points. You need ${reward.cost} points but only have ${user.points}.`
+                });
+            }
         }
         
         // Generate unique claim ID using atomic counter
@@ -1118,8 +1136,10 @@ app.post('/claim-reward', async (req, res) => {
         const nextClaimId = String(counterDoc.seq);
         console.log('Generated claim_id for reward claim:', nextClaimId);
         
-        // Deduct points from user
-        user.points = user.points - reward.cost;
+        if (user.role !== 'admin') {
+            // Deduct points from user
+            user.points = user.points - reward.cost;
+        }
         user.pointsHistory.push({
             amount: -reward.cost,
             type: 'reward_claim',
@@ -1143,8 +1163,9 @@ app.post('/claim-reward', async (req, res) => {
         
         res.json({
             success: true,
-            message: `Successfully claimed ${reward.title}! ${reward.cost} points deducted.`,
-            new_points: user.points,
+            message: `Successfully claimed ${reward.title}!`,
+            new_points: user.role === 'admin' ? null : user.points,
+            unlimited: user.role === 'admin',
             claimed_reward: claimedReward
         });
         

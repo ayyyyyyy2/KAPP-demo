@@ -422,10 +422,12 @@ app.post('/create-offer', async (req, res) => {
                     throw err;
                 }
 
-                if ((sender.points || 0) < amount) {
-                    const err = new Error('Not enough points');
-                    err.statusCode = 400;
-                    throw err;
+                if (sender.role !== 'admin') {
+                    if ((sender.points || 0) < amount) {
+                        const err = new Error('Not enough points');
+                        err.statusCode = 400;
+                        throw err;
+                    }
                 }
 
                 let counter = await Counter.findOne({ _id: 'offerCreation' }).session(session);
@@ -451,7 +453,9 @@ app.post('/create-offer', async (req, res) => {
                 );
                 const nextOfferId = String(counter.seq);
 
-                sender.points = (sender.points || 0) - amount;
+                if (sender.role !== 'admin') {
+                    sender.points = (sender.points || 0) - amount;
+                }
                 sender.pointsHistory = sender.pointsHistory || [];
                 sender.pointsHistory.push({
                     amount: -amount,
@@ -489,7 +493,8 @@ app.post('/create-offer', async (req, res) => {
             success: true,
             message: 'Offer created successfully!',
             offer: createdOffer,
-            new_points: updatedSender.points
+            new_points: updatedSender.role === 'admin' ? null : updatedSender.points,
+            unlimited: updatedSender.role === 'admin'
         });
         
     } catch (error) {
@@ -637,9 +642,18 @@ app.get('/get-points/:email', async (req, res) => {
             });
         }
         
+        if (user.role === 'admin') {
+            return res.json({
+                success: true,
+                points: null,
+                unlimited: true
+            });
+        }
+
         res.json({
             success: true,
-            points: user.points || 0
+            points: user.points || 0,
+            unlimited: false
         });
         
     } catch (error) {
@@ -1133,10 +1147,12 @@ app.post('/claim-reward', async (req, res) => {
                     throw err;
                 }
 
-                if ((user.points || 0) < reward.cost) {
-                    const err = new Error(`Insufficient points. You need ${reward.cost} points but only have ${user.points}.`);
-                    err.statusCode = 400;
-                    throw err;
+                if (user.role !== 'admin') {
+                    if ((user.points || 0) < reward.cost) {
+                        const err = new Error(`Insufficient points. You need ${reward.cost} points but only have ${user.points}.`);
+                        err.statusCode = 400;
+                        throw err;
+                    }
                 }
 
                 let counterDoc = await Counter.findOne({ _id: 'claimedReward' }).session(session);
@@ -1162,7 +1178,9 @@ app.post('/claim-reward', async (req, res) => {
                 );
                 const nextClaimId = String(counterDoc.seq);
 
-                user.points = (user.points || 0) - reward.cost;
+                if (user.role !== 'admin') {
+                    user.points = (user.points || 0) - reward.cost;
+                }
                 user.pointsHistory = user.pointsHistory || [];
                 user.pointsHistory.push({
                     amount: -reward.cost,
@@ -1184,7 +1202,7 @@ app.post('/claim-reward', async (req, res) => {
 
                 await created.save({ session });
 
-                newPoints = user.points;
+                newPoints = user.role === 'admin' ? null : user.points;
                 claimedReward = created;
                 rewardTitle = reward.title;
                 rewardCost = reward.cost;
@@ -1195,8 +1213,9 @@ app.post('/claim-reward', async (req, res) => {
         
         res.json({
             success: true,
-            message: `Successfully claimed ${rewardTitle}! ${rewardCost} points deducted.`,
+            message: `Successfully claimed ${rewardTitle}!`,
             new_points: newPoints,
+            unlimited: newPoints === null,
             claimed_reward: claimedReward
         });
         
