@@ -168,9 +168,51 @@ const rewardSchema = new mongoose.Schema({
     }
 });
 
+const notificationSchema = new mongoose.Schema({
+    notification_id: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    sender_email: {
+        type: String,
+        required: true
+    },
+    sender_name: {
+        type: String,
+        required: true
+    },
+    target_email: {
+        type: String,
+        default: null
+    },
+    target_emails: {
+        type: [String],
+        default: []
+    },
+    headline: {
+        type: String,
+        required: true
+    },
+    message: {
+        type: String,
+        required: true
+    },
+    animation: {
+        type: String,
+        enum: ['bounce', 'slide', 'glow'],
+        default: 'bounce'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
 const User = mongoose.model('User', userSchema, 'users');
 const Offer = mongoose.model('Offer', offerSchema, 'offers');
 const Reward = mongoose.model('Reward', rewardSchema, 'rewards');
+const Notification = mongoose.model('Notification', notificationSchema, 'notifications');
 
 // Counter schema to generate sequential IDs safely
 const counterSchema = new mongoose.Schema({
@@ -179,6 +221,67 @@ const counterSchema = new mongoose.Schema({
 });
 
 const Counter = mongoose.model('Counter', counterSchema, 'counters');
+const notificationClients = new Map();
+
+function serializeNotification(notification) {
+    return {
+        id: notification.notification_id,
+        sender_email: notification.sender_email,
+        sender_name: notification.sender_name,
+        target_email: notification.target_email,
+        target_emails: Array.isArray(notification.target_emails) ? notification.target_emails : [],
+        headline: notification.headline,
+        message: notification.message,
+        animation: notification.animation,
+        createdAt: notification.createdAt
+    };
+}
+
+function addNotificationClient(email, res) {
+    if (!notificationClients.has(email)) {
+        notificationClients.set(email, new Set());
+    }
+    notificationClients.get(email).add(res);
+}
+
+function removeNotificationClient(email, res) {
+    if (!notificationClients.has(email)) {
+        return;
+    }
+    const clients = notificationClients.get(email);
+    clients.delete(res);
+    if (clients.size === 0) {
+        notificationClients.delete(email);
+    }
+}
+
+async function broadcastNotification(notificationDoc) {
+    const payload = `data: ${JSON.stringify(serializeNotification(notificationDoc))}\n\n`;
+    let recipientEmails = [];
+
+    if (Array.isArray(notificationDoc.target_emails) && notificationDoc.target_emails.length > 0) {
+        recipientEmails = notificationDoc.target_emails;
+    } else if (notificationDoc.target_email) {
+        recipientEmails = [notificationDoc.target_email];
+    } else {
+        const users = await User.find({ role: { $ne: 'admin' } }).select('email -_id');
+        recipientEmails = users.map((user) => user.email);
+    }
+
+    for (const email of recipientEmails) {
+        const clients = notificationClients.get(email);
+        if (!clients) {
+            continue;
+        }
+        for (const client of clients) {
+            client.write(payload);
+        }
+    }
+}
+
+function getActiveUserEmails() {
+    return Array.from(notificationClients.keys()).filter(Boolean);
+}
 
 // Middleware
 // Updated configuration with increased limits
@@ -1227,6 +1330,149 @@ app.post('/claim-reward', async (req, res) => {
             message: status === 500 ? ('Failed to claim reward: ' + error.message) : error.message
         });
     }
+});
+
+app.get('/notification-targets', async (req, res) => {
+    try {
+        const adminEmail = String(req.query.admin_email || '').trim();
+        const query = String(req.query.query || '').trim();
+        if (!adminEmail) {
+            return res.status(400).json({ success: false, message: 'Admin email is required' });
+        }
+
+        const adminUser = await User.findOne({ email: adminEmail });
+        if (!adminUser || adminUser.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only admins can access notification targets' });
+        }
+
+        const filters = { role: { $ne: 'admin' } };
+        if (query) {
+            filters.email = { $regex: query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        }
+
+        const users = await User.find(filters)
+            .select('name email role -_id')
+            .sort({ name: 1, email: 1 });
+
+        res.json({
+            success: true,
+            users,
+            active_users: getActiveUserEmails()
+        });
+    } catch (error) {
+        console.error('Notification targets error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load users: ' + error.message });
+    }
+});
+
+app.post('/send-notification', async (req, res) => {
+    try {
+        const {
+            admin_email,
+            headline,
+            message,
+            animation
+        } = req.body;
+
+        const adminEmail = String(admin_email || '').trim();
+        const cleanedHeadline = String(headline || '').trim();
+        const cleanedMessage = String(message || '').trim();
+        const cleanedAnimation = String(animation || 'bounce').trim();
+
+        if (!adminEmail || !cleanedHeadline || !cleanedMessage) {
+            return res.status(400).json({ success: false, message: 'Admin, headline, and message are required' });
+        }
+
+        if (!['bounce', 'slide', 'glow'].includes(cleanedAnimation)) {
+            return res.status(400).json({ success: false, message: 'Invalid animation selected' });
+        }
+
+        const adminUser = await User.findOne({ email: adminEmail });
+        if (!adminUser || adminUser.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Only admins can send notifications' });
+        }
+
+        const targetUsers = await User.find({ role: { $ne: 'admin' } }).select('email -_id');
+        const resolvedTargetEmails = targetUsers.map((user) => user.email);
+
+        if (resolvedTargetEmails.length === 0) {
+            return res.status(400).json({ success: false, message: 'No users are available right now' });
+        }
+
+        const notificationDoc = await Notification.create({
+            notification_id: new mongoose.Types.ObjectId().toString(),
+            sender_email: adminUser.email,
+            sender_name: adminUser.name,
+            target_email: null,
+            target_emails: resolvedTargetEmails,
+            headline: cleanedHeadline,
+            message: cleanedMessage,
+            animation: cleanedAnimation
+        });
+
+        await broadcastNotification(notificationDoc);
+
+        res.json({
+            success: true,
+            message: `Notification sent to ${resolvedTargetEmails.length} users`,
+            notification: serializeNotification(notificationDoc)
+        });
+    } catch (error) {
+        console.error('Send notification error:', error);
+        res.status(500).json({ success: false, message: 'Failed to send notification: ' + error.message });
+    }
+});
+
+app.get('/notifications/list/:email', async (req, res) => {
+    try {
+        const email = String(req.params.email || '').trim();
+        const since = req.query.since ? new Date(String(req.query.since)) : null;
+        const filter = {
+            $or: [
+                { target_email: email },
+                { target_emails: email },
+                { target_email: null }
+            ]
+        };
+
+        if (since && !Number.isNaN(since.getTime())) {
+            filter.createdAt = { $gt: since };
+        }
+
+        const notifications = await Notification.find(filter)
+            .sort({ createdAt: 1 })
+            .limit(25);
+
+        res.json({
+            success: true,
+            notifications: notifications.map(serializeNotification)
+        });
+    } catch (error) {
+        console.error('Get notifications error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load notifications: ' + error.message });
+    }
+});
+
+app.get('/notifications/stream/:email', (req, res) => {
+    const email = String(req.params.email || '').trim();
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    res.write('retry: 3000\n\n');
+
+    addNotificationClient(email, res);
+
+    const heartbeat = setInterval(() => {
+        res.write(': keepalive\n\n');
+    }, 25000);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        removeNotificationClient(email, res);
+        res.end();
+    });
 });
 
 module.exports = app;

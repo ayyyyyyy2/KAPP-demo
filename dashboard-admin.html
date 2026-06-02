@@ -8,6 +8,11 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
+    <!-- Arrow Button for Personal Items -->
+    <div class="personal-items-arrow" onclick="openPersonalItemsTab()">
+        <span>👜</span>
+    </div>
+
     <div class="welcome-container">
         <!-- Personal QR Button -->
         <div class="qr-btn-container" onclick="openPersonalQR()">
@@ -47,6 +52,7 @@
             <div class="action-buttons">
                 <button class="action-btn" onclick="openYourOffers()">Your Offers</button>
                 <button class="action-btn" onclick="openCreateOffer()">Send Offer</button>
+                <button class="action-btn" onclick="openNotificationModal()">Send Notification</button>
                 <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
@@ -103,6 +109,39 @@
                 </div>
                 
                 <button type="submit" class="submit-btn">Create Offer</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="notificationModal" class="modal">
+        <div class="modal-content liquid-glass">
+            <span class="close" onclick="closeNotificationModal()">&times;</span>
+            <h2>Send Notification</h2>
+            <form id="notificationForm">
+                <div class="form-group">
+                    <label>Recipients:</label>
+                    <div class="notification-search-status" id="notificationSearchStatus">
+                        This notification will be sent to all users.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="notificationHeadline">Headline:</label>
+                    <input type="text" id="notificationHeadline" maxlength="80" placeholder="Enter headline" required>
+                </div>
+                <div class="form-group">
+                    <label for="notificationMessage">Message:</label>
+                    <textarea id="notificationMessage" maxlength="300" placeholder="Write your message" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="notificationAnimation">Animation:</label>
+                    <select id="notificationAnimation" required>
+                        <option value="bounce">Bounce</option>
+                        <option value="slide">Slide</option>
+                        <option value="glow">Glow</option>
+                    </select>
+                </div>
+                <div class="notification-helper-text" id="notificationTargetLabel">Selected: no user chosen</div>
+                <button type="submit" class="submit-btn">Send Notification</button>
             </form>
         </div>
     </div>
@@ -193,6 +232,104 @@
             <h2 class="qr-modal-title">Scan QR Code</h2>
             <div id="qrReader" class="scanner-area"></div>
             <p class="qr-modal-hint">Point your camera at a personal QR code</p>
+        </div>
+    </div>
+
+    <!-- Personal Items Tab -->
+    <div id="personalItemsTab" class="calendar-tab">
+        <div class="calendar-container liquid-glass personal-items-container">
+            <div class="calendar-header personal-items-header">
+                <span class="close-calendar" onclick="closePersonalItemsTab()">&times;</span>
+                <h2 class="calendar-title">👜 Personal Items</h2>
+                <p class="personal-items-subtitle">Choose which item to pull out.</p>
+            </div>
+
+            <div id="personalItemsMenu" class="personal-items-menu">
+                <button class="personal-item-btn" onclick="openCalendarItem()">
+                    <span class="personal-item-icon">📅</span>
+                    <span class="personal-item-name">Calendar</span>
+                    <span class="personal-item-hint">Plan your days</span>
+                </button>
+                <button class="personal-item-btn" onclick="openSnakeGame()">
+                    <span class="personal-item-icon">🐍</span>
+                    <span class="personal-item-name">Snake Game</span>
+                    <span class="personal-item-hint">Swipe or use arrows</span>
+                </button>
+            </div>
+
+            <div id="calendarPanel" class="personal-item-panel hidden">
+                <div class="personal-panel-top">
+                    <button class="back-btn-calendar" onclick="showPersonalItemsMenu()">&#10094; Back to Items</button>
+                </div>
+                <div class="calendar-header">
+                    <h2 class="calendar-title">📅 My Calendar</h2>
+                    <div class="calendar-nav">
+                        <button class="nav-btn" onclick="prevMonth()">&#10094;</button>
+                        <span id="currentMonthYear" class="month-year"></span>
+                        <button class="nav-btn" onclick="nextMonth()">&#10095;</button>
+                    </div>
+                </div>
+                <div id="calendarGrid" class="calendar-grid"></div>
+                <div id="dayDetail" class="day-detail hidden">
+                    <div class="day-detail-header">
+                        <button class="back-btn-calendar" onclick="closeDayDetail()">&#10094; Back to Month</button>
+                        <h3 id="selectedDateTitle"></h3>
+                    </div>
+                    <div class="day-content">
+                        <button class="add-event-btn" onclick="openAddEventModal()">➕ Add Event</button>
+                        <div id="eventsList" class="events-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="snakePanel" class="personal-item-panel hidden">
+                <div class="personal-panel-top">
+                    <button class="back-btn-calendar" onclick="showPersonalItemsMenu()">&#10094; Back to Items</button>
+                </div>
+                <div class="snake-card">
+                    <h2 class="calendar-title">🐍 Snake Game</h2>
+                    <div class="snake-stats">
+                        <span>Score: <strong id="snakeScore">0</strong></span>
+                        <span>Best: <strong id="snakeBest">0</strong></span>
+                    </div>
+                    <canvas id="snakeCanvas" class="snake-canvas" width="320" height="320"></canvas>
+                    <p id="snakeStatus" class="snake-status">Swipe on the board or use keyboard arrows.</p>
+                    <div class="snake-actions">
+                        <button class="add-event-btn snake-btn" onclick="restartSnakeGame()">Restart Game</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div id="addEventModal" class="modal">
+        <div class="modal-content liquid-glass">
+            <span class="close" onclick="closeAddEventModal()">&times;</span>
+            <h2>Add New Event</h2>
+            <form id="addEventForm">
+                <div class="form-group">
+                    <label for="eventName">Event Name:</label>
+                    <input type="text" id="eventName" placeholder="e.g., Meeting" required>
+                </div>
+                <div class="form-group event-time-group">
+                    <label for="eventHour">Time:</label>
+                    <div class="time-inputs">
+                        <input type="number" id="eventHour" min="1" max="12" placeholder="12" required>
+                        <span>:</span>
+                        <input type="number" id="eventMinute" min="0" max="59" placeholder="00" value="00">
+                        <select id="eventAmPm" required>
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="eventLength">Length (minutes):</label>
+                    <input type="number" id="eventLength" min="15" max="480" placeholder="60" value="60" required>
+                </div>
+                <button type="submit" class="submit-btn">Add Event</button>
+            </form>
         </div>
     </div>
     
@@ -368,6 +505,22 @@
         
         function goToAllRewards() {
             window.location.href = '/all-rewards';
+        }
+
+        async function openNotificationModal() {
+            document.getElementById('notificationModal').style.display = 'block';
+            updateNotificationTargetLabel();
+        }
+
+        function closeNotificationModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+            document.getElementById('notificationForm').reset();
+            updateNotificationTargetLabel();
+        }
+
+        function updateNotificationTargetLabel() {
+            const label = document.getElementById('notificationTargetLabel');
+            label.textContent = 'Recipients: all users';
         }
         
         function openPersonalQR() {
@@ -739,10 +892,496 @@
             }
         }
 
+        let calendarDate = new Date();
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let selectedDateKey = ''; // Format: YYYY-MM-DD
+        let activePersonalItem = 'menu';
+        let snakeTouchStartX = 0;
+        let snakeTouchStartY = 0;
+        let snakeLoop = null;
+        let snakeScore = 0;
+        let snakeBestScore = 0;
+        let snakeDirection = { x: 1, y: 0 };
+        let snakeNextDirection = { x: 1, y: 0 };
+        let snakeCells = [];
+        let snakeFood = { x: 10, y: 10 };
+        const snakeBoardSize = 20;
+        const snakeTileSize = 16;
+
+        function getSnakeBestKey() {
+            return `snake-best:${currentUserEmail || 'guest'}:admin`;
+        }
+
+        // Helper to get date key
+        function getDateKey(year, month, day) {
+            const m = String(month + 1).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            return `${year}-${m}-${d}`;
+        }
+
+        // Get events from localStorage
+        function getEvents() {
+            const events = localStorage.getItem('calendarEvents');
+            return events ? JSON.parse(events) : {};
+        }
+
+        // Save events to localStorage
+        function saveEvents(events) {
+            localStorage.setItem('calendarEvents', JSON.stringify(events));
+        }
+
+        // Convert time to 24h for sorting
+        function timeTo24Hour(hour, ampm) {
+            let h = parseInt(hour);
+            if (ampm === 'PM' && h !== 12) h += 12;
+            if (ampm === 'AM' && h === 12) h = 0;
+            return h;
+        }
+
+        function initCalendar() {
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = calendarDate.getFullYear();
+            const month = calendarDate.getMonth();
+            
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let html = `
+                <div class="weekday">Sun</div>
+                <div class="weekday">Mon</div>
+                <div class="weekday">Tue</div>
+                <div class="weekday">Wed</div>
+                <div class="weekday">Thu</div>
+                <div class="weekday">Fri</div>
+                <div class="weekday">Sat</div>
+            `;
+            
+            for (let i = 0; i < firstDay; i++) {
+                html += `<div class="day-cell empty"></div>`;
+            }
+            
+            const today = new Date();
+            const events = getEvents();
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = today.getDate() === day && 
+                               today.getMonth() === month && 
+                               today.getFullYear() === year;
+                const dateKey = getDateKey(year, month, day);
+                const hasEvents = events[dateKey] && events[dateKey].length > 0;
+                html += `
+                    <div class="day-cell ${isToday ? 'today' : ''} ${hasEvents ? 'has-events' : ''}" 
+                         onclick="openDayDetail(${year}, ${month}, ${day})">
+                        ${day}
+                    </div>
+                `;
+            }
+            
+            document.getElementById('calendarGrid').innerHTML = html;
+        }
+
+        function prevMonth() {
+            calendarDate.setMonth(calendarDate.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            calendarDate.setMonth(calendarDate.getMonth() + 1);
+            renderCalendar();
+        }
+
+        function openDayDetail(year, month, day) {
+            selectedDateKey = getDateKey(year, month, day);
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('selectedDateTitle').textContent = `${monthNames[month]} ${day}, ${year}`;
+            
+            renderEvents();
+            
+            document.getElementById('calendarGrid').classList.add('hidden');
+            document.getElementById('dayDetail').classList.remove('hidden');
+        }
+
+        function renderEvents() {
+            const events = getEvents();
+            const dayEvents = events[selectedDateKey] || [];
+            
+            // Sort events by time
+            dayEvents.sort((a, b) => {
+                const aHour = timeTo24Hour(a.hour, a.ampm);
+                const bHour = timeTo24Hour(b.hour, b.ampm);
+                if (aHour !== bHour) return aHour - bHour;
+                return (a.minute || 0) - (b.minute || 0);
+            });
+            
+            const eventsList = document.getElementById('eventsList');
+            
+            if (dayEvents.length === 0) {
+                eventsList.innerHTML = `<p class="placeholder-text">No events scheduled yet!</p>`;
+            } else {
+                eventsList.innerHTML = dayEvents.map(event => `
+                    <div class="event-item">
+                        <h4>${escapeHtml(event.name)}</h4>
+                        <p>⏰ ${String(event.hour).padStart(2, '0')}:${String(event.minute || 0).padStart(2, '0')} ${event.ampm} (${event.length} min)</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function openAddEventModal() {
+            document.getElementById('addEventModal').style.display = 'block';
+            document.getElementById('addEventForm').reset();
+        }
+
+        function closeAddEventModal() {
+            document.getElementById('addEventModal').style.display = 'none';
+        }
+
+        function closeDayDetail() {
+            document.getElementById('dayDetail').classList.add('hidden');
+            document.getElementById('calendarGrid').classList.remove('hidden');
+        }
+
+        function openPersonalItemsTab(defaultItem = 'menu') {
+            document.getElementById('personalItemsTab').classList.add('open');
+            if (defaultItem === 'calendar') {
+                openCalendarItem();
+            } else if (defaultItem === 'snake') {
+                openSnakeGame();
+            } else {
+                showPersonalItemsMenu();
+            }
+        }
+
+        function closePersonalItemsTab() {
+            document.getElementById('personalItemsTab').classList.remove('open');
+            showPersonalItemsMenu();
+            stopSnakeLoop();
+        }
+
+        function showPersonalItemsMenu() {
+            activePersonalItem = 'menu';
+            document.getElementById('personalItemsMenu').classList.remove('hidden');
+            document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('snakePanel').classList.add('hidden');
+            closeDayDetail();
+            stopSnakeLoop();
+        }
+
+        function openCalendarItem() {
+            activePersonalItem = 'calendar';
+            document.getElementById('personalItemsMenu').classList.add('hidden');
+            document.getElementById('calendarPanel').classList.remove('hidden');
+            document.getElementById('snakePanel').classList.add('hidden');
+            closeDayDetail();
+            stopSnakeLoop();
+            initCalendar();
+        }
+
+        function openSnakeGame() {
+            activePersonalItem = 'snake';
+            document.getElementById('personalItemsMenu').classList.add('hidden');
+            document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('snakePanel').classList.remove('hidden');
+            loadSnakeBestScore();
+            restartSnakeGame();
+        }
+
+        function openCalendarTab() {
+            openPersonalItemsTab('calendar');
+        }
+
+        function closeCalendarTab() {
+            closePersonalItemsTab();
+        }
+
+        function loadSnakeBestScore() {
+            snakeBestScore = Number(localStorage.getItem(getSnakeBestKey()) || 0);
+            document.getElementById('snakeBest').textContent = String(snakeBestScore);
+        }
+
+        function updateSnakeStatus(message) {
+            document.getElementById('snakeStatus').textContent = message;
+        }
+
+        function updateSnakeScore() {
+            document.getElementById('snakeScore').textContent = String(snakeScore);
+            document.getElementById('snakeBest').textContent = String(snakeBestScore);
+        }
+
+        function drawSnakeGame() {
+            const canvas = document.getElementById('snakeCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'rgba(26, 35, 126, 0.12)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#ef5350';
+            ctx.fillRect(
+                snakeFood.x * snakeTileSize,
+                snakeFood.y * snakeTileSize,
+                snakeTileSize - 2,
+                snakeTileSize - 2
+            );
+
+            snakeCells.forEach((cell, index) => {
+                ctx.fillStyle = index === 0 ? '#43a047' : '#66bb6a';
+                ctx.fillRect(
+                    cell.x * snakeTileSize,
+                    cell.y * snakeTileSize,
+                    snakeTileSize - 2,
+                    snakeTileSize - 2
+                );
+            });
+        }
+
+        function placeSnakeFood() {
+            do {
+                snakeFood = {
+                    x: Math.floor(Math.random() * snakeBoardSize),
+                    y: Math.floor(Math.random() * snakeBoardSize)
+                };
+            } while (snakeCells.some((cell) => cell.x === snakeFood.x && cell.y === snakeFood.y));
+        }
+
+        function stopSnakeLoop() {
+            if (snakeLoop) {
+                window.clearInterval(snakeLoop);
+                snakeLoop = null;
+            }
+        }
+
+        function startSnakeLoop() {
+            stopSnakeLoop();
+            snakeLoop = window.setInterval(stepSnakeGame, 160);
+        }
+
+        function setSnakeDirection(nextX, nextY) {
+            if (snakeDirection.x === -nextX && snakeDirection.y === -nextY) {
+                return;
+            }
+            snakeNextDirection = { x: nextX, y: nextY };
+        }
+
+        function restartSnakeGame() {
+            snakeScore = 0;
+            snakeDirection = { x: 1, y: 0 };
+            snakeNextDirection = { x: 1, y: 0 };
+            snakeCells = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            placeSnakeFood();
+            updateSnakeScore();
+            updateSnakeStatus('Swipe on the board or use keyboard arrows.');
+            drawSnakeGame();
+            startSnakeLoop();
+        }
+
+        function endSnakeGame() {
+            stopSnakeLoop();
+            updateSnakeStatus('Game over. Press Restart Game to play again.');
+        }
+
+        function stepSnakeGame() {
+            snakeDirection = { ...snakeNextDirection };
+            const head = {
+                x: snakeCells[0].x + snakeDirection.x,
+                y: snakeCells[0].y + snakeDirection.y
+            };
+
+            if (
+                head.x < 0 ||
+                head.y < 0 ||
+                head.x >= snakeBoardSize ||
+                head.y >= snakeBoardSize ||
+                snakeCells.some((cell) => cell.x === head.x && cell.y === head.y)
+            ) {
+                endSnakeGame();
+                return;
+            }
+
+            snakeCells.unshift(head);
+
+            if (head.x === snakeFood.x && head.y === snakeFood.y) {
+                snakeScore += 1;
+                if (snakeScore > snakeBestScore) {
+                    snakeBestScore = snakeScore;
+                    localStorage.setItem(getSnakeBestKey(), String(snakeBestScore));
+                }
+                placeSnakeFood();
+                updateSnakeStatus('Nice! Keep going.');
+            } else {
+                snakeCells.pop();
+            }
+
+            updateSnakeScore();
+            drawSnakeGame();
+        }
+
+        function handleSnakeKeyDown(event) {
+            if (activePersonalItem !== 'snake' || !document.getElementById('personalItemsTab').classList.contains('open')) {
+                return;
+            }
+
+            switch (event.key) {
+                case 'ArrowUp':
+                    event.preventDefault();
+                    setSnakeDirection(0, -1);
+                    break;
+                case 'ArrowDown':
+                    event.preventDefault();
+                    setSnakeDirection(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    setSnakeDirection(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    setSnakeDirection(1, 0);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function handleSnakeTouchStart(event) {
+            const touch = event.changedTouches[0];
+            snakeTouchStartX = touch.screenX;
+            snakeTouchStartY = touch.screenY;
+        }
+
+        function handleSnakeTouchEnd(event) {
+            const touch = event.changedTouches[0];
+            const deltaX = touch.screenX - snakeTouchStartX;
+            const deltaY = touch.screenY - snakeTouchStartY;
+            const threshold = 24;
+
+            if (Math.abs(deltaX) < threshold && Math.abs(deltaY) < threshold) {
+                return;
+            }
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                setSnakeDirection(deltaX > 0 ? 1 : -1, 0);
+            } else {
+                setSnakeDirection(0, deltaY > 0 ? 1 : -1);
+            }
+        }
+
+        function handleTouchStart(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }
+
+        function handleTouchEnd(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            checkSwipe();
+        }
+
+        function checkSwipe() {
+            const swipeThreshold = 50;
+            if (touchEndX - touchStartX > swipeThreshold) {
+                openCalendarTab();
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             if (typeof currentUserEmail === 'string' && currentUserEmail) {
                 refreshCurrentPoints();
             }
+            
+            const avatarContainer = document.getElementById('avatarContainer');
+            if (avatarContainer) {
+                avatarContainer.addEventListener('touchstart', handleTouchStart, false);
+                avatarContainer.addEventListener('touchend', handleTouchEnd, false);
+            }
+            window.addEventListener('keydown', handleSnakeKeyDown);
+
+            const snakeCanvas = document.getElementById('snakeCanvas');
+            if (snakeCanvas) {
+                snakeCanvas.addEventListener('touchstart', handleSnakeTouchStart, { passive: true });
+                snakeCanvas.addEventListener('touchend', handleSnakeTouchEnd, { passive: true });
+            }
+            loadSnakeBestScore();
+            
+            // Add event form submit
+            document.getElementById('addEventForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const eventName = document.getElementById('eventName').value;
+                const eventHour = document.getElementById('eventHour').value;
+                const eventMinute = document.getElementById('eventMinute').value;
+                const eventAmPm = document.getElementById('eventAmPm').value;
+                const eventLength = document.getElementById('eventLength').value;
+                
+                const events = getEvents();
+                if (!events[selectedDateKey]) {
+                    events[selectedDateKey] = [];
+                }
+                
+                events[selectedDateKey].push({
+                    name: eventName,
+                    hour: parseInt(eventHour),
+                    minute: parseInt(eventMinute) || 0,
+                    ampm: eventAmPm,
+                    length: parseInt(eventLength)
+                });
+                
+                saveEvents(events);
+                renderEvents();
+                renderCalendar(); // Update has-events indicator
+                closeAddEventModal();
+            });
+
+            document.getElementById('notificationForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const payload = {
+                    admin_email: currentUserEmail,
+                    headline: document.getElementById('notificationHeadline').value,
+                    message: document.getElementById('notificationMessage').value,
+                    animation: document.getElementById('notificationAnimation').value
+                };
+
+                try {
+                    const response = await fetch('/send-notification', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert(result.message);
+                        closeNotificationModal();
+                    } else {
+                        alert(result.message || 'Failed to send notification.');
+                    }
+                } catch (error) {
+                    alert('Failed to send notification. Please try again.');
+                }
+            });
+            
+            // Close modals when clicking outside
+            window.addEventListener('click', function(e) {
+                if (e.target.classList.contains('modal')) {
+                    if (e.target.id === 'notificationModal') {
+                        closeNotificationModal();
+                    } else {
+                        e.target.style.display = 'none';
+                    }
+                }
+            });
         });
     </script>
 </body>
