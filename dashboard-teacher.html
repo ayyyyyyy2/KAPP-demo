@@ -276,6 +276,20 @@
                     <label for="eventName">Event Name:</label>
                     <input type="text" id="eventName" placeholder="e.g., Class" required>
                 </div>
+                <div class="form-group">
+                    <label for="eventEmote">Emote:</label>
+                    <select id="eventEmote">
+                        <option value="">No emote</option>
+                        <option value="📚">📚 Study</option>
+                        <option value="🎉">🎉 Fun</option>
+                        <option value="🏀">🏀 Sports</option>
+                        <option value="🎵">🎵 Music</option>
+                        <option value="🎮">🎮 Gaming</option>
+                        <option value="🍽️">🍽️ Food</option>
+                        <option value="💼">💼 Work</option>
+                        <option value="❤️">❤️ Personal</option>
+                    </select>
+                </div>
                 <div class="form-group event-time-group">
                     <label for="eventHour">Time:</label>
                     <div class="time-inputs">
@@ -1046,7 +1060,7 @@
             } else {
                 eventsList.innerHTML = dayEvents.map(event => `
                     <div class="event-item">
-                        <h4>${escapeHtml(event.name)}</h4>
+                        <h4>${event.emote ? `${escapeHtml(event.emote)} ` : ''}${escapeHtml(event.name)}</h4>
                         <p>⏰ ${String(event.hour).padStart(2, '0')}:${String(event.minute || 0).padStart(2, '0')} ${event.ampm} (${event.length} min)</p>
                     </div>
                 `).join('');
@@ -1338,6 +1352,7 @@
                 e.preventDefault();
                 
                 const eventName = document.getElementById('eventName').value;
+                const eventEmote = document.getElementById('eventEmote').value;
                 const eventHour = document.getElementById('eventHour').value;
                 const eventMinute = document.getElementById('eventMinute').value;
                 const eventAmPm = document.getElementById('eventAmPm').value;
@@ -1350,6 +1365,7 @@
                 
                 events[selectedDateKey].push({
                     name: eventName,
+                    emote: eventEmote,
                     hour: parseInt(eventHour),
                     minute: parseInt(eventMinute) || 0,
                     ampm: eventAmPm,
