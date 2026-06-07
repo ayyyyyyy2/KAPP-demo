@@ -50,8 +50,8 @@
                 <p>Loading user information...</p>
             </div>
             <div class="action-buttons">
-                <button class="action-btn" onclick="openYourOffers()">Your Offers</button>
-                <button class="action-btn" onclick="openCreateOffer()">Send Offer</button>
+                <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
+                <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
                 <button class="action-btn" onclick="openNotificationModal()">Send Notification</button>
                 <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
@@ -87,11 +87,12 @@
                 <div class="form-group">
                     <label for="receiverEmail">Receiver Email:</label>
                     <div class="input-with-icon">
-                        <input type="email" id="receiverEmail" placeholder="student@example.com" required>
+                        <input type="email" id="receiverEmail" placeholder="Leave blank for QR offer">
                         <div class="camera-btn" onclick="openQRScanner()">
                             <span class="camera-icon">📷</span>
                         </div>
                     </div>
+                    <div class="notification-search-status">Leave blank when generating a QR offer. Whoever scans it becomes the receiver.</div>
                 </div>
                 
                 <div class="form-group">
@@ -107,8 +108,18 @@
                         </div>
                     </div>
                 </div>
-                
-                <button type="submit" class="submit-btn">Create Offer</button>
+
+                <div class="offer-action-row">
+                    <button type="submit" class="submit-btn">Create Offer</button>
+                    <button type="button" class="submit-btn secondary-submit-btn" onclick="generateOfferQr()">Generate QR</button>
+                </div>
+
+                <div id="createdOfferQrResult" class="created-offer-qr-result hidden">
+                    <div id="createdOfferQrImage" class="qr-display-area created-offer-qr-image"></div>
+                    <p id="createdOfferQrLabel" class="qr-modal-email"></p>
+                    <p id="createdOfferQrMeta" class="qr-modal-hint"></p>
+                    <button type="button" id="downloadOfferQrBtn" class="download-offer-qr-btn" onclick="downloadCreatedOfferQr()">Download QR</button>
+                </div>
             </form>
         </div>
     </div>
@@ -195,6 +206,7 @@
     <!-- Your Offers Modal -->
     <div id="yourOffersModal" class="modal">
         <div class="modal-content liquid-glass">
+            <button type="button" class="offers-scan-btn" onclick="openOfferQrScanner()" aria-label="Scan offer QR">📷</button>
             <span class="close" onclick="closeYourOffers()">&times;</span>
             <h2>Your Offers</h2>
             <div id="offersList" class="offers-container"></div>
@@ -231,7 +243,16 @@
             <span class="close" onclick="closeQRScanner()">&times;</span>
             <h2 class="qr-modal-title">Scan QR Code</h2>
             <div id="qrReader" class="scanner-area"></div>
-            <p class="qr-modal-hint">Point your camera at a personal QR code</p>
+            <p class="qr-modal-hint" id="qrScannerHint">Point your camera at a personal QR code</p>
+        </div>
+    </div>
+
+    <div id="offerClaimModal" class="modal">
+        <div class="modal-content liquid-glass offer-claim-modal-content">
+            <span class="close" onclick="closeOfferClaimModal()">&times;</span>
+            <h2>Offer Details</h2>
+            <div id="offerClaimDetails" class="offer-claim-details"></div>
+            <button type="button" class="submit-btn" onclick="confirmOfferClaim()">Claim</button>
         </div>
     </div>
 
@@ -560,9 +581,19 @@
         }
         
         let html5QrCode = null;
+        let qrScannerMode = 'receiver';
+        let scannedOfferId = '';
+        let createdOfferQrDownload = {
+            src: '',
+            filename: 'offer-qr.png'
+        };
 
-        async function openQRScanner() {
+        async function openQRScanner(mode = 'receiver') {
+            qrScannerMode = mode;
             document.getElementById('qrScannerModal').style.display = 'block';
+            document.getElementById('qrScannerHint').textContent = mode === 'offer'
+                ? 'Point your camera at a generated offer QR code'
+                : 'Point your camera at a personal QR code';
             
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode("qrReader");
@@ -574,11 +605,17 @@
                 await html5QrCode.start(
                     { facingMode: "environment" }, 
                     config, 
-                    (decodedText) => {
-                        // Successfully scanned
-                        document.getElementById('receiverEmail').value = decodedText;
-                        closeQRScanner();
-                        // Visual feedback
+                    async (decodedText) => {
+                        const scannedValue = String(decodedText || '').trim();
+                        const activeScanMode = qrScannerMode;
+                        await closeQRScanner();
+
+                        if (activeScanMode === 'offer') {
+                            await openOfferClaimPreview(scannedValue);
+                            return;
+                        }
+
+                        document.getElementById('receiverEmail').value = scannedValue;
                         const emailInput = document.getElementById('receiverEmail');
                         emailInput.style.backgroundColor = 'rgba(129, 199, 132, 0.2)';
                         setTimeout(() => emailInput.style.backgroundColor = '', 1000);
@@ -600,6 +637,49 @@
                     console.error("Stop scanning error:", err);
                 }
             }
+            qrScannerMode = 'receiver';
+            document.getElementById('qrScannerHint').textContent = 'Point your camera at a personal QR code';
+        }
+
+        async function openOfferQrScanner() {
+            await openQRScanner('offer');
+        }
+
+        async function openOfferClaimPreview(offerId) {
+            try {
+                const response = await fetch(`/offer-details/${encodeURIComponent(offerId)}?user_email=${encodeURIComponent(currentUserEmail)}`);
+                const result = await response.json();
+
+                if (!result.success || !result.offer) {
+                    alert(result.message || 'Offer not found.');
+                    return;
+                }
+
+                scannedOfferId = result.offer.offer_id;
+                document.getElementById('offerClaimDetails').innerHTML = `
+                    <div class="offer-preview-title">${escapeHtml(result.offer.title)}</div>
+                    <div class="offer-preview-description">${escapeHtml(result.offer.description)}</div>
+                    <div class="offer-preview-points">${escapeHtml(result.offer.points_amount)} 🍌</div>
+                    <div class="offer-preview-meta">From: <strong>${escapeHtml(result.offer.sent_by)}</strong></div>
+                    <div class="offer-preview-meta">${result.offer.receiver_email ? `Assigned to: <strong>${escapeHtml(result.offer.receiver_email)}</strong>` : 'Open QR offer'}</div>
+                `;
+                document.getElementById('offerClaimModal').style.display = 'block';
+            } catch (error) {
+                alert('Failed to load offer details.');
+            }
+        }
+
+        function closeOfferClaimModal() {
+            scannedOfferId = '';
+            document.getElementById('offerClaimDetails').innerHTML = '';
+            document.getElementById('offerClaimModal').style.display = 'none';
+        }
+
+        async function confirmOfferClaim() {
+            if (!scannedOfferId) {
+                return;
+            }
+            await claimOffer(scannedOfferId);
         }
         
         // Slider LogicToggle points history bubble
@@ -714,28 +794,122 @@
         // Create offer functionality
         function openCreateOffer() {
             document.getElementById('createOfferModal').style.display = 'block';
+            hideCreatedOfferQr();
         }
         
         function closeCreateOffer() {
             document.getElementById('createOfferModal').style.display = 'none';
+            hideCreatedOfferQr();
+            document.getElementById('createOfferForm').reset();
         }
-        
-        document.getElementById('createOfferForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = {
+
+        function getCreateOfferFormData() {
+            return {
                 title: document.getElementById('offerTitle').value,
                 description: document.getElementById('offerDescription').value,
                 sent_by: currentUserId,
                 receiver_email: document.getElementById('receiverEmail').value,
-                points_amount: document.getElementById('pointsAmount').value
+                points_amount: document.getElementById('pointsAmount').value,
+                qr_open_offer: false
             };
-            
+        }
+
+        function hideCreatedOfferQr() {
+            const resultBox = document.getElementById('createdOfferQrResult');
+            document.getElementById('createdOfferQrImage').innerHTML = '';
+            document.getElementById('createdOfferQrLabel').textContent = '';
+            document.getElementById('createdOfferQrMeta').textContent = '';
+            createdOfferQrDownload = {
+                src: '',
+                filename: 'offer-qr.png'
+            };
+            resultBox.classList.add('hidden');
+        }
+
+        function getOfferQrFilename(offer) {
+            const safeTitle = String(offer?.title || 'offer')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'offer';
+            const safeId = String(offer?.offer_id || 'qr').replace(/[^a-z0-9_-]+/gi, '');
+            return `${safeTitle}-${safeId}-qr.png`;
+        }
+
+        function showCreatedOfferQr(offer) {
+            const qrData = offer?.offer_id || '';
+            const qrContainer = document.getElementById('createdOfferQrImage');
+            const qrLabel = document.getElementById('createdOfferQrLabel');
+            const qrMeta = document.getElementById('createdOfferQrMeta');
+            const resultBox = document.getElementById('createdOfferQrResult');
+
+            qrContainer.innerHTML = '';
+
+            const qrImg = document.createElement('img');
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
+            qrImg.alt = 'Offer QR Code';
+            qrContainer.appendChild(qrImg);
+            createdOfferQrDownload = {
+                src: qrImg.src,
+                filename: getOfferQrFilename(offer)
+            };
+
+            qrLabel.textContent = `Created offer: ${offer.title}`;
+            qrMeta.textContent = offer.receiver_email
+                ? `Claim ID: ${offer.offer_id} | Receiver: ${offer.receiver_email} | ${offer.points_amount} points`
+                : `Claim ID: ${offer.offer_id} | Open QR offer | ${offer.points_amount} points`;
+            resultBox.classList.remove('hidden');
+        }
+
+        async function downloadCreatedOfferQr() {
+            if (!createdOfferQrDownload.src) {
+                alert('Generate a QR code first.');
+                return;
+            }
+
             try {
-                const response = await fetch('/create-offer', {
+                const response = await fetch(createdOfferQrDownload.src);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch QR image');
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = createdOfferQrDownload.filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(objectUrl);
+            } catch (error) {
+                alert('Failed to download QR. Please try again.');
+            }
+        }
+
+        async function submitCreateOffer(options = {}) {
+            const { showQr = false } = options;
+            const formData = getCreateOfferFormData();
+            const receiverInput = document.getElementById('receiverEmail');
+            const normalizedReceiverEmail = String(formData.receiver_email || '').trim();
+
+            if (!showQr && !normalizedReceiverEmail) {
+                alert('Receiver email is required when creating a direct offer.');
+                receiverInput.focus();
+                return;
+            }
+
+            if (showQr) {
+                receiverInput.value = '';
+                formData.receiver_email = '';
+                formData.qr_open_offer = true;
+            }
+
+            try {
+                const response = await fetch(showQr ? '/create-offer?qr=1' : '/create-offer', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-Offer-Mode': showQr ? 'qr' : 'direct'
                     },
                     body: JSON.stringify(formData)
                 });
@@ -743,7 +917,6 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(result.message);
                     if (typeof result.new_points !== 'undefined') {
                         updateDisplayedPoints(result.new_points);
                         if (isHistoryVisible) {
@@ -751,14 +924,37 @@
                         }
                     }
                     refreshCurrentPoints();
-                    closeCreateOffer();
-                    document.getElementById('createOfferForm').reset();
+
+                    if (showQr) {
+                        showCreatedOfferQr(result.offer || formData);
+                        alert('Offer created and QR generated successfully!');
+                    } else {
+                        alert(result.message);
+                        closeCreateOffer();
+                        document.getElementById('createOfferForm').reset();
+                    }
                 } else {
                     alert(result.message);
                 }
             } catch (error) {
                 alert('Failed to create offer. Please try again.');
             }
+        }
+
+        async function generateOfferQr() {
+            const titleInput = document.getElementById('offerTitle');
+            const descriptionInput = document.getElementById('offerDescription');
+            const pointsInput = document.getElementById('pointsAmount');
+
+            if (!titleInput.reportValidity() || !descriptionInput.reportValidity() || !pointsInput.reportValidity()) {
+                return;
+            }
+            await submitCreateOffer({ showQr: true });
+        }
+        
+        document.getElementById('createOfferForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitCreateOffer({ showQr: false });
         });
         
         // Your offers functionality
@@ -769,6 +965,7 @@
         
         function closeYourOffers() {
             document.getElementById('yourOffersModal').style.display = 'none';
+            closeOfferClaimModal();
         }
         
         async function loadOffers() {
@@ -819,6 +1016,7 @@
                     alert(result.message);
                     updateDisplayedPoints(result.new_points);
                     refreshCurrentPoints();
+                    closeOfferClaimModal();
                     loadOffers(); // Refresh offers list
                     if (isHistoryVisible) {
                         loadPointsHistory(); // Refresh history if visible

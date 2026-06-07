@@ -1498,6 +1498,69 @@ body {
     margin-bottom: 20px;
 }
 
+.offers-scan-btn {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(141, 110, 99, 0.12);
+    color: #8d6e63;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.offers-scan-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(141, 110, 99, 0.2);
+    box-shadow: 0 6px 14px rgba(141, 110, 99, 0.18);
+}
+
+.offer-claim-modal-content {
+    max-width: 430px !important;
+}
+
+.offer-claim-details {
+    background: rgba(141, 110, 99, 0.06);
+    border: 1px solid rgba(141, 110, 99, 0.12);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.offer-preview-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #8d6e63;
+    margin-bottom: 10px;
+}
+
+.offer-preview-description {
+    color: #5d4037;
+    font-size: 15px;
+    margin-bottom: 14px;
+}
+
+.offer-preview-points {
+    font-size: 30px;
+    font-weight: 800;
+    color: #8d6e63;
+    margin-bottom: 12px;
+}
+
+.offer-preview-meta {
+    color: #6d4c41;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
 .claim-btn {
     background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
     color: white;

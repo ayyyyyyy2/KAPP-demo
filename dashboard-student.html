@@ -51,8 +51,8 @@
                 <p>Loading user information...</p>
             </div>
             <div class="action-buttons">
-                <button class="action-btn" onclick="openYourOffers()">Your Offers</button>
-                <button class="action-btn" onclick="openCreateOffer()">Send Offer</button>
+                <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
+                <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
                 <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
@@ -158,6 +158,7 @@
     <!-- Your Offers Modal -->
     <div id="yourOffersModal" class="modal">
         <div class="modal-content liquid-glass">
+            <button type="button" class="offers-scan-btn" onclick="openOfferQrScanner()" aria-label="Scan offer QR">📷</button>
             <span class="close" onclick="closeYourOffers()">&times;</span>
             <h2>Your Offers</h2>
             <div id="offersList" class="offers-container"></div>
@@ -194,7 +195,16 @@
             <span class="close" onclick="closeQRScanner()">&times;</span>
             <h2 class="qr-modal-title">Scan QR Code</h2>
             <div id="qrReader" class="scanner-area"></div>
-            <p class="qr-modal-hint">Point your camera at a personal QR code</p>
+            <p class="qr-modal-hint" id="qrScannerHint">Point your camera at a personal QR code</p>
+        </div>
+    </div>
+
+    <div id="offerClaimModal" class="modal">
+        <div class="modal-content liquid-glass offer-claim-modal-content">
+            <span class="close" onclick="closeOfferClaimModal()">&times;</span>
+            <h2>Offer Details</h2>
+            <div id="offerClaimDetails" class="offer-claim-details"></div>
+            <button type="button" class="submit-btn" onclick="confirmOfferClaim()">Claim</button>
         </div>
     </div>
 
@@ -664,6 +674,7 @@
         
         function closeYourOffers() {
             document.getElementById('yourOffersModal').style.display = 'none';
+            closeOfferClaimModal();
         }
         
         async function loadOffers() {
@@ -783,6 +794,7 @@
                     alert(result.message);
                     updateDisplayedPoints(result.new_points);
                     refreshCurrentPoints();
+                    closeOfferClaimModal();
                     loadOffers(); // Refresh offers list
                     if (isHistoryVisible) {
                         loadPointsHistory(); // Refresh history if visible
@@ -828,9 +840,15 @@
          }
          
          let html5QrCode = null;
+         let qrScannerMode = 'receiver';
+         let scannedOfferId = '';
 
-         async function openQRScanner() {
+         async function openQRScanner(mode = 'receiver') {
+             qrScannerMode = mode;
              document.getElementById('qrScannerModal').style.display = 'block';
+             document.getElementById('qrScannerHint').textContent = mode === 'offer'
+                 ? 'Point your camera at a generated offer QR code'
+                 : 'Point your camera at a personal QR code';
              
              if (!html5QrCode) {
                  html5QrCode = new Html5Qrcode("qrReader");
@@ -842,11 +860,17 @@
                  await html5QrCode.start(
                      { facingMode: "environment" }, 
                      config, 
-                     (decodedText) => {
-                         // Successfully scanned
-                         document.getElementById('receiverEmail').value = decodedText;
-                         closeQRScanner();
-                         // Visual feedback
+                     async (decodedText) => {
+                         const scannedValue = String(decodedText || '').trim();
+                         const activeScanMode = qrScannerMode;
+                         await closeQRScanner();
+
+                         if (activeScanMode === 'offer') {
+                             await openOfferClaimPreview(scannedValue);
+                             return;
+                         }
+
+                         document.getElementById('receiverEmail').value = scannedValue;
                          const emailInput = document.getElementById('receiverEmail');
                          emailInput.style.backgroundColor = 'rgba(129, 199, 132, 0.2)';
                          setTimeout(() => emailInput.style.backgroundColor = '', 1000);
@@ -868,6 +892,49 @@
                      console.error("Stop scanning error:", err);
                  }
              }
+             qrScannerMode = 'receiver';
+             document.getElementById('qrScannerHint').textContent = 'Point your camera at a personal QR code';
+         }
+
+         async function openOfferQrScanner() {
+             await openQRScanner('offer');
+         }
+
+         async function openOfferClaimPreview(offerId) {
+             try {
+                 const response = await fetch(`/offer-details/${encodeURIComponent(offerId)}?user_email=${encodeURIComponent(currentUserEmail)}`);
+                 const result = await response.json();
+
+                 if (!result.success || !result.offer) {
+                     alert(result.message || 'Offer not found.');
+                     return;
+                 }
+
+                 scannedOfferId = result.offer.offer_id;
+                 document.getElementById('offerClaimDetails').innerHTML = `
+                     <div class="offer-preview-title">${escapeHtml(result.offer.title)}</div>
+                     <div class="offer-preview-description">${escapeHtml(result.offer.description)}</div>
+                     <div class="offer-preview-points">${escapeHtml(result.offer.points_amount)} 🍌</div>
+                     <div class="offer-preview-meta">From: <strong>${escapeHtml(result.offer.sent_by)}</strong></div>
+                     <div class="offer-preview-meta">${result.offer.receiver_email ? `Assigned to: <strong>${escapeHtml(result.offer.receiver_email)}</strong>` : 'Open QR offer'}</div>
+                 `;
+                 document.getElementById('offerClaimModal').style.display = 'block';
+             } catch (error) {
+                 alert('Failed to load offer details.');
+             }
+         }
+
+         function closeOfferClaimModal() {
+             scannedOfferId = '';
+             document.getElementById('offerClaimDetails').innerHTML = '';
+             document.getElementById('offerClaimModal').style.display = 'none';
+         }
+
+         async function confirmOfferClaim() {
+             if (!scannedOfferId) {
+                 return;
+             }
+             await claimOffer(scannedOfferId);
          }
          
          // Add these functions before the closing script tag

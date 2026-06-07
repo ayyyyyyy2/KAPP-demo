@@ -82,7 +82,7 @@ const offerSchema = new mongoose.Schema({
     },
     receiver_email: {
         type: String,
-        required: true
+        default: null
     },
     points_amount: {
         type: Number,
@@ -438,16 +438,28 @@ app.post('/login', async (req, res) => {
 // Create offer
 app.post('/create-offer', async (req, res) => {
     try {
-        const { title, description, sent_by, receiver_email, points_amount } = req.body;
+        const { title, description, sent_by, receiver_email, points_amount, qr_open_offer } = req.body;
         const amount = parseInt(points_amount);
-        
-        // Validate receiver email exists
-        const receiver = await User.findOne({ email: receiver_email });
-        if (!receiver) {
+        const normalizedReceiverEmail = String(receiver_email || '').trim().toLowerCase();
+        const forcedQrMode = req.query.qr === '1' || String(req.headers['x-offer-mode'] || '').toLowerCase() === 'qr';
+        const isQrOffer = forcedQrMode || qr_open_offer === true || qr_open_offer === 'true' || !normalizedReceiverEmail;
+        let receiver = null;
+
+        if (!Number.isFinite(amount) || amount <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Receiver email not found'
+                message: 'Invalid points amount'
             });
+        }
+
+        if (!isQrOffer) {
+            receiver = await User.findOne({ email: normalizedReceiverEmail });
+            if (!receiver) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Receiver email not found'
+                });
+            }
         }
         
         // Find the sender and deduct points (only for 'user' role, or if you want it for everyone)
@@ -464,7 +476,7 @@ app.post('/create-offer', async (req, res) => {
             sender.pointsHistory.push({
                 amount: -amount,
                 type: 'sent_offer',
-                description: `Sent offer: ${title} to ${receiver.name}`,
+                description: isQrOffer ? `Sent offer: ${title} via QR` : `Sent offer: ${title} to ${receiver.name}`,
                 timestamp: new Date()
             });
             await sender.save();
@@ -480,7 +492,7 @@ app.post('/create-offer', async (req, res) => {
             sender.pointsHistory.push({
                 amount: -amount,
                 type: 'sent_offer',
-                description: `Sent offer: ${title} to ${receiver.name}`,
+                description: isQrOffer ? `Sent offer: ${title} via QR` : `Sent offer: ${title} to ${receiver.name}`,
                 timestamp: new Date()
             });
             await sender.save();
@@ -501,7 +513,7 @@ app.post('/create-offer', async (req, res) => {
             sender.pointsHistory.push({
                 amount: -amount,
                 type: 'sent_offer',
-                description: `Sent offer: ${title} to ${receiver.name}`,
+                description: isQrOffer ? `Sent offer: ${title} via QR` : `Sent offer: ${title} to ${receiver.name}`,
                 timestamp: new Date()
             });
             await sender.save();
@@ -528,7 +540,7 @@ app.post('/create-offer', async (req, res) => {
             title,
             description,
             sent_by,
-            receiver_email,
+            receiver_email: isQrOffer ? null : normalizedReceiverEmail,
             points_amount: amount
         });
         
@@ -597,15 +609,63 @@ app.get('/get-offers/:email', async (req, res) => {
     }
 });
 
+app.get('/offer-details/:offer_id', async (req, res) => {
+    try {
+        const { offer_id } = req.params;
+        const userEmail = String(req.query.user_email || '').trim().toLowerCase();
+
+        const offer = await Offer.findOne({
+            offer_id: String(offer_id),
+            status: 'pending'
+        }).lean();
+
+        if (!offer) {
+            return res.status(404).json({
+                success: false,
+                message: 'Offer not found or already claimed'
+            });
+        }
+
+        if (offer.receiver_email && offer.receiver_email !== userEmail) {
+            return res.status(403).json({
+                success: false,
+                message: 'This offer is assigned to another user'
+            });
+        }
+
+        const sender = await User.findOne({ regd_no: offer.sent_by }).select('name email -_id').lean();
+
+        res.json({
+            success: true,
+            offer: {
+                offer_id: offer.offer_id,
+                title: offer.title,
+                description: offer.description,
+                points_amount: offer.points_amount,
+                sent_by: sender?.name || offer.sent_by,
+                sender_email: sender?.email || '',
+                receiver_email: offer.receiver_email || null,
+                createdAt: offer.createdAt
+            }
+        });
+    } catch (error) {
+        console.error('Get offer details error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get offer details: ' + error.message
+        });
+    }
+});
+
 // Update the claim offer endpoint
 app.post('/claim-offer', async (req, res) => {
     try {
         const { offer_id, user_email } = req.body;
+        const normalizedUserEmail = String(user_email || '').trim().toLowerCase();
         
         // Find the offer
         const offer = await Offer.findOne({ 
             offer_id: offer_id,
-            receiver_email: user_email,
             status: 'pending'
         });
         
@@ -615,9 +675,16 @@ app.post('/claim-offer', async (req, res) => {
                 message: 'Offer not found or already claimed'
             });
         }
+
+        if (offer.receiver_email && offer.receiver_email !== normalizedUserEmail) {
+            return res.status(403).json({
+                success: false,
+                message: 'This offer is assigned to another user'
+            });
+        }
         
         // Update user points
-        const user = await User.findOne({ email: user_email });
+        const user = await User.findOne({ email: normalizedUserEmail });
         if (!user) {
             return res.status(400).json({
                 success: false,
@@ -641,6 +708,9 @@ app.post('/claim-offer', async (req, res) => {
         // Mark offer as claimed and set claimedAt timestamp
         offer.status = 'claimed';
         offer.claimedAt = new Date();
+        if (!offer.receiver_email) {
+            offer.receiver_email = normalizedUserEmail;
+        }
         await offer.save();
         
         res.json({
