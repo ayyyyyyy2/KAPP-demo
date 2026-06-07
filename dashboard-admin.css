@@ -1555,6 +1555,22 @@ body {
     .user-info p {
         font-size: 14px;
     }
+
+    .bug-report-btn {
+        right: 12px;
+        bottom: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    .bug-report-card {
+        padding: 22px 18px 18px;
+        border-radius: 16px;
+    }
+
+    .bug-report-card h3 {
+        font-size: 22px;
+    }
 }
     
     .form-group label {
@@ -1869,6 +1885,130 @@ body {
 
 .personal-items-arrow:active {
     transform: translateY(-50%) scale(0.95);
+}
+
+.bug-report-btn {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1a237e 0%, #3949ab 55%, #ffd600 100%);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(26, 35, 126, 0.28);
+    z-index: 520;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.bug-report-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(26, 35, 126, 0.34);
+    filter: brightness(1.05);
+}
+
+.bug-report-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(10, 18, 38, 0.42);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1500;
+}
+
+.bug-report-card {
+    width: min(100%, 420px);
+    background: linear-gradient(145deg, #ffffff 0%, #f7f8ff 100%);
+    border-radius: 20px;
+    padding: 26px 22px 22px;
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bug-report-card h3 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(45deg, #1a237e, #ffd600);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.bug-report-copy {
+    text-align: center;
+    color: #4a5a7a;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.bug-report-close {
+    position: absolute;
+    right: 14px;
+    top: 10px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.bug-report-card input,
+.bug-report-card textarea {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid #dce3f4;
+    border-radius: 12px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.94);
+    font-family: inherit;
+}
+
+.bug-report-card textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.bug-report-card input:focus,
+.bug-report-card textarea:focus {
+    outline: none;
+    border-color: #3949ab;
+    box-shadow: 0 0 0 3px rgba(57, 73, 171, 0.12);
+    background: #fff;
+}
+
+.bug-send-btn {
+    background: linear-gradient(135deg, #1a237e 0%, #3949ab 55%, #ffd600 100%);
+    color: white;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 8px 16px rgba(26, 35, 126, 0.28);
+}
+
+.bug-send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(26, 35, 126, 0.35);
 }
 
 /* Calendar Tab Styles */
@@ -2386,6 +2526,18 @@ body {
         height: 48px;
         right: 8px;
         font-size: 22px;
+    }
+
+    .bug-report-btn {
+        right: 10px;
+        bottom: 10px;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    .bug-report-card {
+        width: min(100%, 380px);
+        padding: 20px 16px 16px;
     }
 
     .user-info {

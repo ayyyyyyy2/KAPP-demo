@@ -149,6 +149,22 @@ input[type="submit"]:active {
         padding: 15px 20px;
         font-size: 16px;
     }
+
+    .bug-report-btn {
+        right: 12px;
+        bottom: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+
+    .bug-report-card {
+        padding: 22px 18px 18px;
+        border-radius: 16px;
+    }
+
+    .bug-report-card h3 {
+        font-size: 22px;
+    }
 }
 
 /* Add a subtle animation */
@@ -242,4 +258,129 @@ button[type="submit"]:active {
     box-shadow: 
         0 4px 8px rgba(30, 60, 114, 0.3),
         0 2px 4px rgba(212, 175, 55, 0.2);
+}
+
+.bug-report-btn {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #d4af37 100%);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(30, 60, 114, 0.28);
+    z-index: 40;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.bug-report-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(30, 60, 114, 0.34);
+    filter: brightness(1.05);
+}
+
+.bug-report-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(10, 18, 38, 0.42);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 50;
+}
+
+.bug-report-card {
+    width: min(100%, 420px);
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    padding: 26px 22px 22px;
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bug-report-card h3 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(45deg, #1e3c72, #d4af37);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.bug-report-copy {
+    text-align: center;
+    color: #49617f;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.bug-report-close {
+    position: absolute;
+    right: 14px;
+    top: 10px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.bug-report-card textarea {
+    min-height: 120px;
+    padding: 16px 20px;
+    border: 2px solid #e1e8ed;
+    border-radius: 12px;
+    font-size: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.9);
+    resize: vertical;
+    font-family: inherit;
+}
+
+.bug-report-card textarea:focus {
+    outline: none;
+    border-color: #d4af37;
+    box-shadow:
+        0 0 0 3px rgba(212, 175, 55, 0.1),
+        0 4px 12px rgba(30, 60, 114, 0.15);
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 1);
+}
+
+.bug-send-btn {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #d4af37 100%);
+    color: white;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow:
+        0 8px 16px rgba(30, 60, 114, 0.3),
+        0 4px 8px rgba(212, 175, 55, 0.2);
+}
+
+.bug-send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow:
+        0 12px 24px rgba(30, 60, 114, 0.4),
+        0 6px 12px rgba(212, 175, 55, 0.3);
 }

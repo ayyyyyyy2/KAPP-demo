@@ -13,6 +13,8 @@
         <span>👜</span>
     </div>
 
+    <button type="button" class="bug-report-btn" onclick="openBugReportModal()" aria-label="Report a bug">🐞</button>
+
     <div class="welcome-container">
         <!-- Personal QR Button -->
         <div class="qr-btn-container" onclick="openPersonalQR()">
@@ -253,6 +255,21 @@
             <h2>Offer Details</h2>
             <div id="offerClaimDetails" class="offer-claim-details"></div>
             <button type="button" class="submit-btn" onclick="confirmOfferClaim()">Claim</button>
+        </div>
+    </div>
+
+    <div id="bugReportModal" class="bug-report-modal">
+        <div class="bug-report-card">
+            <button type="button" class="bug-report-close" onclick="closeBugReportModal()" aria-label="Close bug report">&times;</button>
+            <h3>Report A Bug</h3>
+            <p class="bug-report-copy">Send a bug report to kappbysup@gmail.com.</p>
+            <label for="bugReportEmail">Your Email:</label>
+            <input type="email" id="bugReportEmail" placeholder="you@example.com">
+            <label for="bugReportSubject">Subject:</label>
+            <input type="text" id="bugReportSubject" placeholder="Bug report">
+            <label for="bugReportMessage">Message:</label>
+            <textarea id="bugReportMessage" placeholder="Describe the issue..." required></textarea>
+            <button type="button" class="bug-send-btn" onclick="sendBugReport()">Send</button>
         </div>
     </div>
 
@@ -583,6 +600,7 @@
         let html5QrCode = null;
         let qrScannerMode = 'receiver';
         let scannedOfferId = '';
+        const bugReportModal = document.getElementById('bugReportModal');
         let createdOfferQrDownload = {
             src: '',
             filename: 'offer-qr.png'
@@ -673,6 +691,42 @@
             scannedOfferId = '';
             document.getElementById('offerClaimDetails').innerHTML = '';
             document.getElementById('offerClaimModal').style.display = 'none';
+        }
+
+        function openBugReportModal() {
+            resetBugReportForm();
+            bugReportModal.style.display = 'flex';
+        }
+
+        function closeBugReportModal() {
+            resetBugReportForm();
+            bugReportModal.style.display = 'none';
+        }
+
+        function resetBugReportForm() {
+            document.getElementById('bugReportEmail').value = '';
+            document.getElementById('bugReportSubject').value = '';
+            document.getElementById('bugReportMessage').value = '';
+        }
+
+        function sendBugReport() {
+            const email = document.getElementById('bugReportEmail').value.trim();
+            const subjectInput = document.getElementById('bugReportSubject').value.trim();
+            const message = document.getElementById('bugReportMessage').value.trim();
+
+            if (!message) {
+                alert('Please describe the bug before sending.');
+                return;
+            }
+
+            const subject = subjectInput || 'Bug report';
+            const body = [
+                email ? `From: ${email}` : '',
+                message
+            ].filter(Boolean).join('\n\n');
+
+            window.location.href = `mailto:kappbysup@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            closeBugReportModal();
         }
 
         async function confirmOfferClaim() {
@@ -1594,6 +1648,10 @@
                     } else {
                         e.target.style.display = 'none';
                     }
+                }
+
+                if (e.target === bugReportModal) {
+                    closeBugReportModal();
                 }
             });
         });
