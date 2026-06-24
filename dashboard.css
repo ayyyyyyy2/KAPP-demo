@@ -103,3 +103,41 @@ body {
         transform: translateY(0);
     }
 }
+
+@media (max-width: 390px) {
+    body {
+        padding: 8px;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+
+    .welcome-container {
+        max-width: calc(100vw - 16px);
+        padding: 26px 16px 20px;
+        border-radius: 18px;
+    }
+
+    .welcome-title {
+        font-size: 28px;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+    }
+
+    .welcome-content {
+        gap: 18px;
+    }
+
+    .user-info {
+        padding: 18px 14px;
+    }
+
+    .user-info p {
+        font-size: 14px;
+    }
+
+    .logout-btn {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 14px;
+    }
+}

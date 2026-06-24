@@ -1059,6 +1059,163 @@ body {
     transform: none;
 }
 
+@media (max-width: 390px) {
+    body {
+        padding: 8px;
+        padding-top: 104px;
+    }
+
+    .welcome-container {
+        max-width: calc(100vw - 16px);
+        padding: 24px 14px 18px;
+        border-radius: 20px;
+    }
+
+    .welcome-title {
+        font-size: 26px;
+        line-height: 1.15;
+    }
+
+    .points-display {
+        top: max(10px, calc(env(safe-area-inset-top) + 10px));
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(250px, calc(100vw - 16px));
+        justify-content: center;
+        text-align: center;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .edit-btn-glass,
+    .edit-btn {
+        top: 56px;
+        left: 8px;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .points-history-bubble {
+        top: max(104px, calc(env(safe-area-inset-top) + 104px));
+        right: 8px;
+        width: calc(100vw - 16px);
+        max-height: 260px;
+    }
+
+    .qr-btn-container {
+        top: max(10px, calc(env(safe-area-inset-top) + 10px));
+        left: max(8px, calc(env(safe-area-inset-left) + 8px));
+    }
+
+    .action-buttons {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .action-btn,
+    .logout-btn,
+    .vendors-btn,
+    .rewards-btn {
+        width: 100%;
+        font-size: 14px;
+        padding: 12px 16px;
+    }
+
+    .personal-items-arrow {
+        width: 48px;
+        height: 48px;
+        right: 8px;
+        font-size: 22px;
+    }
+
+    .personal-items-tab {
+        width: 100%;
+    }
+
+    .personal-items-content {
+        padding: 18px 14px 20px;
+    }
+
+    .personal-items-menu,
+    .analytics-summary,
+    .roadmap-progress-summary,
+    .analytics-stats-grid,
+    .roadmap-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-card,
+    .roadmap-card,
+    .snake-card,
+    .roadmap-track-card,
+    .roadmap-detail-card {
+        padding: 16px;
+        border-radius: 18px;
+    }
+
+    .roadmap-track {
+        min-height: 560px;
+        padding: 76px 0 64px;
+    }
+
+    .roadmap-step.left,
+    .roadmap-step.right {
+        padding-left: 2%;
+        padding-right: 2%;
+    }
+
+    .roadmap-node {
+        width: 74px;
+        height: 74px;
+    }
+
+    .roadmap-node::after {
+        width: 72px;
+        height: 56px;
+    }
+
+    .roadmap-step.left .roadmap-node::after {
+        left: 34px;
+    }
+
+    .roadmap-step.right .roadmap-node::after {
+        right: 34px;
+    }
+
+    .roadmap-node-icon {
+        font-size: 22px;
+    }
+
+    .roadmap-avatar-shell {
+        bottom: 44px;
+    }
+
+    .roadmap-finish-badge,
+    .roadmap-start-badge {
+        width: 64px;
+        height: 64px;
+        font-size: 24px;
+    }
+
+    .snake-card canvas,
+    #snakeCanvas {
+        width: min(100%, 300px);
+        height: auto;
+    }
+
+    .modal-content,
+    .scanner-modal-content,
+    .qr-modal-content,
+    .offer-claim-modal-content {
+        width: calc(100vw - 16px) !important;
+        max-width: calc(100vw - 16px) !important;
+        margin: 12px auto !important;
+        padding: 16px !important;
+        border-radius: 18px !important;
+    }
+}
+
 .day-cell.today {
     background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
     color: white;
@@ -1342,8 +1499,8 @@ body {
 /* Points Display - Make it clickable */
 .points-display {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: max(12px, calc(env(safe-area-inset-top) + 12px));
+    right: max(12px, calc(env(safe-area-inset-right) + 12px));
     background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
     color: #8d6e63;
     padding: 15px 25px;
@@ -1352,7 +1509,7 @@ body {
     font-weight: 700;
     box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.3);
-    z-index: 1000;
+    z-index: 1200;
     cursor: pointer;
     transition: all 0.3s ease;
     user-select: none;
@@ -1366,8 +1523,8 @@ body {
 /* Liquid Glass Points History Bubble */
 .points-history-bubble {
     position: fixed;
-    top: 80px;
-    right: 20px;
+    top: max(72px, calc(env(safe-area-inset-top) + 72px));
+    right: max(12px, calc(env(safe-area-inset-right) + 12px));
     width: 320px;
     max-height: 400px;
     background: rgba(255, 255, 255, 0.1);
@@ -1486,8 +1643,8 @@ body {
 /* Personal QR Button */
 .qr-btn-container {
     position: fixed;
-    top: 20px;
-    left: 20px;
+    top: max(12px, calc(env(safe-area-inset-top) + 12px));
+    left: max(12px, calc(env(safe-area-inset-left) + 12px));
     width: 45px;
     height: 45px;
     background: rgba(255, 255, 255, 0.4);
@@ -1501,7 +1658,7 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.3);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
+    z-index: 1200;
 }
 
 .qr-btn-container:hover {

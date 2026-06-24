@@ -220,6 +220,49 @@ body {
     background: linear-gradient(145deg, #A0522D 0%, #8B4513 100%);
 }
 
+@media (max-width: 390px) {
+    body {
+        padding: 10px 8px 20px;
+        align-items: flex-start;
+    }
+
+    .back-btn {
+        top: 8px;
+        left: 8px;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .vendors-container {
+        max-width: calc(100vw - 16px);
+        padding: 54px 14px 20px;
+        border-radius: 18px;
+    }
+
+    .vendors-title {
+        font-size: 28px;
+        letter-spacing: 1px;
+    }
+
+    .vendor-button-container {
+        margin-top: 24px;
+        gap: 14px;
+    }
+
+    .zona-krawca-btn,
+    .hogs-head-btn {
+        padding: 16px 14px;
+        border-radius: 14px;
+        gap: 10px;
+        letter-spacing: 1px;
+    }
+
+    .zona-krawca-text,
+    .hogs-head-text {
+        font-size: 15px;
+    }
+}
+
 .hogs-head-btn:active {
     transform: translateY(-1px);
     box-shadow: 0 4px 10px rgba(139, 69, 19, 0.4);

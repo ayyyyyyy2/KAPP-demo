@@ -527,3 +527,110 @@ body {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 15px 35px rgba(26, 35, 126, 0.3);
 }
+
+@media (max-width: 390px) {
+    body {
+        padding: 10px 8px 20px;
+    }
+
+    .back-btn {
+        top: 8px;
+        left: 8px;
+        padding: 8px 12px;
+        border-radius: 12px;
+    }
+
+    .back-btn span {
+        font-size: 11px;
+    }
+
+    .rewards-container {
+        margin-top: 54px;
+    }
+
+    .rewards-title {
+        font-size: 28px;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+    }
+
+    .rewards-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 0;
+    }
+
+    .reward-bubble {
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    .reward-image,
+    .no-image {
+        height: 150px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+    }
+
+    .reward-title {
+        font-size: 18px;
+    }
+
+    .reward-description {
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    .reward-details {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .reward-cost,
+    .reward-vendor {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .modal-content {
+        width: calc(100vw - 16px);
+        max-width: calc(100vw - 16px);
+        margin: 12px auto;
+        border-radius: 20px;
+    }
+
+    .modal-full-image {
+        height: 180px;
+    }
+
+    .modal-body.pastel-body {
+        padding: 18px 16px;
+    }
+
+    .pastel-title {
+        font-size: 22px;
+    }
+
+    .pastel-description {
+        font-size: 15px;
+        margin-bottom: 18px;
+    }
+
+    .pastel-cost-number {
+        font-size: 34px;
+    }
+
+    .banana-emoji {
+        font-size: 28px;
+    }
+
+    .modal-footer {
+        padding: 0 16px 16px;
+    }
+
+    .claim-btn-pastel {
+        padding: 16px;
+        font-size: 16px;
+        letter-spacing: 1px;
+    }
+}
