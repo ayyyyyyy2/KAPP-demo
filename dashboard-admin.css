@@ -2685,6 +2685,248 @@ body {
     background: white;
 }
 
+/* Admin app shell layout */
+body {
+    min-height: 100vh;
+    height: 100vh;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+}
+
+.dashboard-shell {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.fixed-header-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 1200;
+    pointer-events: none;
+}
+
+.fixed-header-layer .qr-btn-container,
+.fixed-header-layer .points-display {
+    pointer-events: auto;
+}
+
+.scrollable-content-layer {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 100px 20px 140px;
+    width: 100%;
+}
+
+.welcome-container {
+    width: min(100%, 1200px);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 32px 32px;
+    border-radius: 28px;
+}
+
+.welcome-content.welcome-section-parent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+    width: 100%;
+}
+
+.welcome-title {
+    margin-bottom: 0;
+    text-align: center;
+}
+
+.user-information-card-parent {
+    width: min(100%, 760px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 28px;
+    border-radius: 22px;
+    text-align: left;
+}
+
+.user-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(26, 35, 126, 0.05);
+    border: 1px solid rgba(26, 35, 126, 0.08);
+}
+
+.user-info-label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(26, 35, 126, 0.64);
+}
+
+.user-info-value {
+    font-size: 17px;
+    line-height: 1.4;
+    color: #1a237e;
+    word-break: break-word;
+}
+
+.action-buttons.action-buttons-parent {
+    width: min(100%, 980px);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 0;
+}
+
+.action-buttons-parent .action-btn {
+    flex: 1 1 220px;
+    max-width: 280px;
+    min-height: 56px;
+    padding: 16px 18px;
+    font-size: 14px;
+}
+
+.logout-button-row,
+.vendors-button-container {
+    width: min(100%, 980px);
+    display: flex;
+    justify-content: center;
+}
+
+.logout-button-row {
+    margin-top: 4px;
+}
+
+.logout-btn {
+    width: min(70%, 420px);
+    margin-top: 0;
+    justify-self: auto;
+}
+
+.vendors-btn {
+    width: min(70%, 520px);
+}
+
+.fixed-bottom-action-layer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1190;
+    display: flex;
+    justify-content: center;
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+    pointer-events: none;
+}
+
+.fixed-bottom-action-layer .rewards-button-container {
+    width: 100%;
+    margin-top: 0;
+    display: flex;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.fixed-bottom-action-layer .rewards-btn {
+    width: min(70%, 720px);
+}
+
+@media (max-width: 1024px) and (min-width: 768px) {
+    .scrollable-content-layer {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .action-buttons.action-buttons-parent {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: min(100%, 760px);
+    }
+
+    .action-buttons-parent .action-btn {
+        max-width: none;
+        width: 100%;
+    }
+
+    .logout-btn,
+    .vendors-btn {
+        width: 85%;
+    }
+
+    .fixed-bottom-action-layer .rewards-btn {
+        width: min(85%, 720px);
+    }
+}
+
+@media (max-width: 767px) {
+    .scrollable-content-layer {
+        padding: 100px 14px 138px;
+    }
+
+    .welcome-container {
+        padding: 28px 18px 24px;
+        border-radius: 22px;
+    }
+
+    .welcome-content.welcome-section-parent {
+        gap: 22px;
+    }
+
+    .welcome-title {
+        font-size: 34px;
+        line-height: 1.05;
+    }
+
+    .user-information-card-parent {
+        width: 100%;
+        padding: 18px;
+    }
+
+    .action-buttons.action-buttons-parent {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        width: 100%;
+    }
+
+    .action-buttons-parent .action-btn {
+        width: 100%;
+        max-width: none;
+        flex: none;
+    }
+
+    .logout-button-row,
+    .vendors-button-container {
+        width: 100%;
+    }
+
+    .logout-btn,
+    .vendors-btn {
+        width: 100%;
+    }
+
+    .fixed-bottom-action-layer {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .fixed-bottom-action-layer .rewards-btn {
+        width: min(95%, 720px);
+    }
+}
+
 @media (max-width: 390px) {
     body {
         padding: 8px;

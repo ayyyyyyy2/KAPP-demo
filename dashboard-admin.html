@@ -15,17 +15,17 @@
 
     <button type="button" class="bug-report-btn" onclick="openBugReportModal()" aria-label="Report a bug">🐞</button>
 
-    <div class="welcome-container">
-        <!-- Personal QR Button -->
-        <div class="qr-btn-container" onclick="openPersonalQR()">
-            <span class="qr-icon">📱</span>
+    <div class="dashboard-shell">
+        <div class="fixed-header-layer">
+            <div class="qr-btn-container" onclick="openPersonalQR()">
+                <span class="qr-icon">📱</span>
+            </div>
+
+            <div class="points-display" onclick="togglePointsHistory()">
+                <h2>🍌 Points: <span id="pointCount">0</span></h2>
+            </div>
         </div>
-        
-        <div class="points-display" onclick="togglePointsHistory()">
-            <h2>🍌 Points: <span id="pointCount">0</span></h2>
-        </div>
-        
-        <!-- Points History Bubble -->
+
         <div id="pointsHistoryBubble" class="points-history-bubble hidden">
             <div class="bubble-header">
                 <h3>🏆 Points History</h3>
@@ -34,36 +34,59 @@
                 <p>Loading history...</p>
             </div>
         </div>
-        
-        <div class="welcome-content">
-            <h1 class="welcome-title">Welcome Admin</h1>
-            
-            <!-- Admin Avatar -->
-            <div class="user-avatar" id="avatarContainer">
-                <div class="avatar-container admin-avatar" id="mainAvatar">
-                    <div class="avatar-hair" id="avatarHair"></div>
-                    <div class="avatar-head"></div>
-                    <div class="avatar-body" id="avatarBody"></div>
-                    <div class="crown" id="avatarHat">👑</div>
+
+        <div class="scrollable-content-layer">
+            <div class="welcome-container">
+                <div class="welcome-content welcome-section-parent">
+                    <h1 class="welcome-title">Welcome Admin</h1>
+
+                    <div class="user-avatar" id="avatarContainer">
+                        <div class="avatar-container admin-avatar" id="mainAvatar">
+                            <div class="avatar-hair" id="avatarHair"></div>
+                            <div class="avatar-head"></div>
+                            <div class="avatar-body" id="avatarBody"></div>
+                            <div class="crown" id="avatarHat">👑</div>
+                        </div>
+                    </div>
+
+                    <div class="user-info user-information-card-parent" id="userInfo">
+                        <div class="user-info-row">
+                            <span class="user-info-label">Name</span>
+                            <strong class="user-info-value">Loading...</strong>
+                        </div>
+                        <div class="user-info-row">
+                            <span class="user-info-label">Email</span>
+                            <strong class="user-info-value">Loading...</strong>
+                        </div>
+                        <div class="user-info-row">
+                            <span class="user-info-label">Registration Number</span>
+                            <strong class="user-info-value">Loading...</strong>
+                        </div>
+                        <div class="user-info-row">
+                            <span class="user-info-label">Role</span>
+                            <strong class="user-info-value">Loading...</strong>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons action-buttons-parent">
+                        <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
+                        <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
+                        <button class="action-btn" onclick="openNotificationModal()">Send Notification</button>
+                        <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
+                    </div>
+
+                    <div class="logout-button-row">
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+
+                    <div class="vendors-button-container">
+                        <button class="vendors-btn" onclick="goToVendors()">All Vendors</button>
+                    </div>
                 </div>
             </div>
-            
-            <div class="user-info" id="userInfo">
-                <p>Loading user information...</p>
-            </div>
-            <div class="action-buttons">
-                <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
-                <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
-                <button class="action-btn" onclick="openNotificationModal()">Send Notification</button>
-                <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
-                <button class="logout-btn" onclick="logout()">Logout</button>
-            </div>
-            <!-- Add the vendors button -->
-            <div class="vendors-button-container">
-                <button class="vendors-btn" onclick="goToVendors()">All Vendors</button>
-            </div>
-            
-            <!-- Add ALL REWARDS button -->
+        </div>
+
+        <div class="fixed-bottom-action-layer">
             <div class="rewards-button-container">
                 <button class="rewards-btn" onclick="goToAllRewards()">ALL REWARDS</button>
             </div>
@@ -571,6 +594,27 @@
             } catch(e) {}
         }
         
+        function renderAdminUserInfoCard(userNameValue, userEmailValue, userRegdNoValue) {
+            return `
+                <div class="user-info-row">
+                    <span class="user-info-label">Name</span>
+                    <strong class="user-info-value">👑 ${escapeHtml(userNameValue || '')}</strong>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Email</span>
+                    <strong class="user-info-value">${escapeHtml(userEmailValue || '')}</strong>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Registration Number</span>
+                    <strong class="user-info-value">${escapeHtml(userRegdNoValue || '')}</strong>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Role</span>
+                    <strong class="user-info-value">Administrator</strong>
+                </div>
+            `;
+        }
+
         // Store user data in sessionStorage when page loads
         if (userName) {
             const userData = {
@@ -583,12 +627,7 @@
             };
             sessionStorage.setItem('adminUserData', JSON.stringify(userData));
             
-            document.getElementById('userInfo').innerHTML = `
-                <p><strong>Name:</strong> 👑 ${userName}</p>
-                <p><strong>Email:</strong> ${userEmail}</p>
-                <p><strong>Registration No:</strong> ${userRegdNo}</p>
-                <p><strong>Role:</strong> Administrator</p>
-            `;
+            document.getElementById('userInfo').innerHTML = renderAdminUserInfoCard(userName, userEmail, userRegdNo);
             
             document.getElementById('pointCount').textContent = '∞';
         } else {
@@ -596,12 +635,7 @@
             const storedData = sessionStorage.getItem('adminUserData');
             if (storedData) {
                 const userData = JSON.parse(storedData);
-                document.getElementById('userInfo').innerHTML = `
-                    <p><strong>Name:</strong> 👑 ${userData.name}</p>
-                    <p><strong>Email:</strong> ${userData.email}</p>
-                    <p><strong>Registration No:</strong> ${userData.regd_no}</p>
-                    <p><strong>Role:</strong> Administrator</p>
-                `;
+                document.getElementById('userInfo').innerHTML = renderAdminUserInfoCard(userData.name, userData.email, userData.regd_no);
                 document.getElementById('pointCount').textContent = '∞';
                 currentUserEmail = userData.email;
                 currentUserId = userData.regd_no;
