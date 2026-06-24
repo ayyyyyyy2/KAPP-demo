@@ -14,17 +14,17 @@
     </div>
     <div id="notificationHost" class="notification-host"></div>
 
-    <div class="welcome-container">
-        <!-- Personal QR Button -->
-        <div class="qr-btn-container" onclick="openPersonalQR()">
-            <span class="qr-icon">📱</span>
+    <div class="dashboard-shell">
+        <div class="fixed-header-layer">
+            <div class="qr-btn-container" onclick="openPersonalQR()">
+                <span class="qr-icon">📱</span>
+            </div>
+
+            <div class="points-display" onclick="togglePointsHistory()">
+                <h2>🍌 Points: <span id="pointCount">0</span></h2>
+            </div>
         </div>
-        
-        <div class="points-display" onclick="togglePointsHistory()">
-            <h2>🍌 Points: <span id="pointCount">0</span></h2>
-        </div>
-        
-        <!-- Points History Bubble -->
+
         <div id="pointsHistoryBubble" class="points-history-bubble hidden">
             <div class="bubble-header">
                 <h3>🏆 Points History</h3>
@@ -33,31 +33,35 @@
                 <p>Loading history...</p>
             </div>
         </div>
-        
-        <div class="welcome-content">
-            <h1 class="welcome-title">Welcome Student</h1>
-            
-            <!-- Student Avatar -->
-            <div class="user-avatar" id="avatarContainer">
-                <div class="avatar-container student-avatar" id="mainAvatar">
-                    <div class="avatar-hair" id="avatarHair"></div>
-                    <div class="avatar-head"></div>
-                    <div class="avatar-body" id="avatarBody"></div>
-                    <div class="backpack" id="avatarHat">🎒</div>
+
+        <div class="scrollable-content-layer">
+            <div class="welcome-container">
+                <div class="welcome-content welcome-section-parent">
+                    <h1 class="welcome-title">Welcome <span id="welcomeUserName">Student</span></h1>
+                    
+                    <div class="user-avatar" id="avatarContainer">
+                        <div class="avatar-container student-avatar" id="mainAvatar">
+                            <div class="avatar-hair" id="avatarHair"></div>
+                            <div class="avatar-head"></div>
+                            <div class="avatar-body" id="avatarBody"></div>
+                            <div class="backpack" id="avatarHat">🎒</div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons action-buttons-parent">
+                        <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
+                        <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
+                        <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
+                    </div>
+
+                    <div class="logout-button-row">
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
                 </div>
             </div>
-            
-            <div class="user-info" id="userInfo">
-                <p>Loading user information...</p>
-            </div>
-            <div class="action-buttons">
-                <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
-                <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
-                <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
-                <button class="logout-btn" onclick="logout()">Logout</button>
-            </div>
-            
-            <!-- Add ALL REWARDS button -->
+        </div>
+
+        <div class="fixed-bottom-action-layer">
             <div class="rewards-button-container">
                 <button class="rewards-btn" onclick="goToAllRewards()">ALL REWARDS</button>
             </div>
@@ -506,6 +510,15 @@
             } catch(e) {}
         }
         
+        function updateWelcomeUserName(nameValue) {
+            const welcomeUserName = document.getElementById('welcomeUserName');
+            if (!welcomeUserName) {
+                return;
+            }
+            const trimmedName = String(nameValue || '').trim();
+            welcomeUserName.textContent = trimmedName || 'Student';
+        }
+
         // Store user data in sessionStorage when page loads
         if (userName) {
             const userData = {
@@ -517,25 +530,14 @@
             };
             sessionStorage.setItem('userData', JSON.stringify(userData));
             
-            document.getElementById('userInfo').innerHTML = `
-                <p><strong>Name:</strong> 🎓 ${userName}</p>
-                <p><strong>Email:</strong> ${userEmail}</p>
-                <p><strong>Registration No:</strong> ${userRegdNo}</p>
-                <p><strong>Role:</strong> Student</p>
-            `;
-            
+            updateWelcomeUserName(userName);
             document.getElementById('pointCount').textContent = userPoints;
         } else {
             // Try to load from sessionStorage if URL params are missing
             const storedData = sessionStorage.getItem('userData');
             if (storedData) {
                 const userData = JSON.parse(storedData);
-                document.getElementById('userInfo').innerHTML = `
-                    <p><strong>Name:</strong> 🎓 ${userData.name}</p>
-                    <p><strong>Email:</strong> ${userData.email}</p>
-                    <p><strong>Registration No:</strong> ${userData.regd_no}</p>
-                    <p><strong>Role:</strong> Student</p>
-                `;
+                updateWelcomeUserName(userData.name);
                 document.getElementById('pointCount').textContent = userData.points;
                 currentUserEmail = userData.email;
                 currentUserId = userData.regd_no;
