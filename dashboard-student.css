@@ -1274,20 +1274,14 @@ body {
     overflow-x: hidden;
     padding: 100px 20px 140px;
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
 }
 
 .welcome-container {
-    width: min(95%, 1200px);
+    width: min(100%, 1200px);
+    max-width: 1200px;
     margin: 0 auto;
     padding: 40px 32px 32px;
     border-radius: 28px;
-    min-height: calc(100vh - 240px);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
 }
 
 .welcome-content.welcome-section-parent {
@@ -1296,7 +1290,6 @@ body {
     align-items: center;
     gap: 26px;
     width: 100%;
-    flex: 1;
 }
 
 .welcome-title {
@@ -1433,11 +1426,6 @@ body {
         padding-right: 18px;
     }
 
-    .welcome-container {
-        width: min(92%, 1000px);
-        min-height: calc(100vh - 240px);
-    }
-
     .action-buttons.action-buttons-parent {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1453,10 +1441,6 @@ body {
         width: 85%;
     }
 
-    .vendors-btn {
-        width: 85%;
-    }
-
     .fixed-bottom-action-layer .rewards-btn {
         width: min(85%, 720px);
     }
@@ -1468,10 +1452,8 @@ body {
     }
 
     .welcome-container {
-        width: min(95%, 100%);
         padding: 28px 18px 24px;
         border-radius: 22px;
-        min-height: calc(100vh - 238px);
     }
 
     .welcome-content.welcome-section-parent {
@@ -1505,15 +1487,7 @@ body {
         width: 100%;
     }
 
-    .vendors-button-container {
-        width: 100%;
-    }
-
     .logout-btn {
-        width: 100%;
-    }
-
-    .vendors-btn {
         width: 100%;
     }
 
@@ -2654,12 +2628,10 @@ body {
     }
 
     .welcome-container {
-        width: calc(100vw - 24px);
         max-width: calc(100vw - 24px);
         padding: 36px 18px;
         margin-top: 12px;
         margin-bottom: 12px;
-        min-height: calc(100vh - 236px);
     }
 
     .welcome-title {
@@ -2736,11 +2708,10 @@ body {
     }
 
     .welcome-container {
-        width: min(95%, 960px);
+        width: min(100%, 600px);
         max-width: calc(100vw - 24px);
         padding: 24px 20px;
         border-radius: 18px;
-        min-height: calc(100vh - 160px);
     }
 
     .welcome-content {
