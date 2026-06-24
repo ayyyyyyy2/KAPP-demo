@@ -82,6 +82,16 @@ const userSchema = new mongoose.Schema({
         hairStyle: { type: String, default: 'none' },
         hairColor: { type: String, default: '#000000' }
     },
+    analytics: {
+        totalTimeSpentSeconds: {
+            type: Number,
+            default: 0
+        },
+        dailySessions: {
+            type: Object,
+            default: {}
+        }
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -221,6 +231,94 @@ const counterSchema = new mongoose.Schema({
 });
 
 const Counter = mongoose.model('Counter', counterSchema, 'counters');
+
+function getAnalyticsDateKey(date = new Date()) {
+    return date.toISOString().slice(0, 10);
+}
+
+function ensureUserAnalytics(user) {
+    if (!user.analytics || typeof user.analytics !== 'object') {
+        user.analytics = {};
+    }
+    if (!Number.isFinite(user.analytics.totalTimeSpentSeconds)) {
+        user.analytics.totalTimeSpentSeconds = 0;
+    }
+    if (!user.analytics.dailySessions || typeof user.analytics.dailySessions !== 'object') {
+        user.analytics.dailySessions = {};
+    }
+    return user.analytics;
+}
+
+function incrementDailySessionCount(user, date = new Date()) {
+    const analytics = ensureUserAnalytics(user);
+    const dateKey = getAnalyticsDateKey(date);
+    analytics.dailySessions[dateKey] = Number(analytics.dailySessions[dateKey] || 0) + 1;
+    user.markModified('analytics');
+}
+
+function addTrackedTime(user, seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    if (!safeSeconds) {
+        return;
+    }
+    const analytics = ensureUserAnalytics(user);
+    analytics.totalTimeSpentSeconds = Number(analytics.totalTimeSpentSeconds || 0) + safeSeconds;
+    user.markModified('analytics');
+}
+
+async function getUserBananaTotals(user) {
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+    const regdNo = String(user?.regd_no || '').trim();
+    const bonusBananas = Array.isArray(user?.pointsHistory)
+        ? user.pointsHistory.reduce((total, entry) => {
+            const amount = Number(entry?.amount || 0);
+            return ['snake_banana', 'roadmap_aplus_bonus'].includes(entry?.type) && amount > 0
+                ? total + amount
+                : total;
+        }, 0)
+        : 0;
+
+    const [claimedOffers, sentOffers, claimedRewards] = await Promise.all([
+        userEmail ? Offer.aggregate([
+            { $match: { receiver_email: userEmail, status: 'claimed' } },
+            { $group: { _id: null, total: { $sum: '$points_amount' } } }
+        ]) : Promise.resolve([]),
+        regdNo ? Offer.aggregate([
+            { $match: { sent_by: regdNo, status: 'claimed' } },
+            { $group: { _id: null, total: { $sum: '$points_amount' } } }
+        ]) : Promise.resolve([]),
+        userEmail ? ClaimedReward.aggregate([
+            { $match: { user_email: userEmail } },
+            { $group: { _id: null, total: { $sum: '$reward_cost' } } }
+        ]) : Promise.resolve([])
+    ]);
+
+    const bananasClaimed = Number(claimedOffers[0]?.total || 0);
+    const bananasSpentOnOffers = Number(sentOffers[0]?.total || 0);
+    const bananasSpentOnRewards = Number(claimedRewards[0]?.total || 0);
+
+    return {
+        bananas_claimed: bananasClaimed + bonusBananas,
+        bananas_spent: bananasSpentOnOffers + bananasSpentOnRewards
+    };
+}
+
+async function buildAnalyticsSnapshot(user, todayKey = getAnalyticsDateKey()) {
+    const totals = await getUserBananaTotals(user);
+    return {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        created_at: user.createdAt,
+        time_spent_seconds: Number(user.analytics?.totalTimeSpentSeconds || 0),
+        daily_sessions: Number(user.analytics?.dailySessions?.[todayKey] || 0),
+        bananas_claimed: totals.bananas_claimed,
+        bananas_spent: totals.bananas_spent,
+        roadmap_aplus_claimed: Array.isArray(user?.pointsHistory)
+            ? user.pointsHistory.some((entry) => entry?.type === 'roadmap_aplus_bonus')
+            : false
+    };
+}
 const notificationClients = new Map();
 
 function serializeNotification(notification) {
@@ -451,6 +549,9 @@ app.post('/login', async (req, res) => {
         });
         
         if (user) {
+            incrementDailySessionCount(user);
+            await user.save();
+
             // Determine dashboard based on role
             let dashboardPage;
             switch(user.role) {
@@ -489,6 +590,228 @@ app.post('/login', async (req, res) => {
                 window.location.href = '/';
             </script>
         `);
+    }
+});
+
+app.post('/analytics/session', async (req, res) => {
+    try {
+        const userEmail = String(req.body.user_email || '').trim().toLowerCase();
+        const durationSeconds = Math.min(300, Math.max(0, Math.floor(Number(req.body.duration_seconds) || 0)));
+
+        if (!userEmail || !durationSeconds) {
+            return res.json({ success: true });
+        }
+
+        const user = await User.findOne({ email: userEmail });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        addTrackedTime(user, durationSeconds);
+        await user.save();
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Analytics session error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save analytics session'
+        });
+    }
+});
+
+app.post('/snake-banana-claim', async (req, res) => {
+    try {
+        const userEmail = String(req.body.user_email || '').trim().toLowerCase();
+        if (!userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'User email is required'
+            });
+        }
+
+        const user = await User.findOne({ email: userEmail });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const isUnlimited = user.role === 'admin';
+        if (!isUnlimited) {
+            user.points = Number(user.points || 0) + 1;
+        }
+
+        user.pointsHistory = user.pointsHistory || [];
+        user.pointsHistory.push({
+            amount: 1,
+            type: 'snake_banana',
+            description: 'Won a rare banana in Snake Game',
+            timestamp: new Date()
+        });
+        await user.save();
+
+        res.json({
+            success: true,
+            unlimited: isUnlimited,
+            new_points: isUnlimited ? null : user.points
+        });
+    } catch (error) {
+        console.error('Snake banana claim error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to claim snake banana reward'
+        });
+    }
+});
+
+app.post('/roadmap-a-plus-claim', async (req, res) => {
+    try {
+        const userEmail = String(req.body.user_email || '').trim().toLowerCase();
+        const snakeBestScore = Math.max(0, Math.floor(Number(req.body.snake_best_score) || 0));
+
+        if (!userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'User email is required'
+            });
+        }
+
+        const user = await User.findOne({ email: userEmail });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        user.pointsHistory = user.pointsHistory || [];
+        const alreadyClaimed = user.pointsHistory.some((entry) => entry?.type === 'roadmap_aplus_bonus');
+        if (alreadyClaimed) {
+            return res.json({
+                success: true,
+                awarded: false,
+                roadmap_aplus_claimed: true,
+                unlimited: user.role === 'admin',
+                new_points: user.role === 'admin' ? null : user.points
+            });
+        }
+
+        const analytics = await buildAnalyticsSnapshot(user);
+        const qualifies =
+            analytics.bananas_claimed >= 25 &&
+            analytics.bananas_spent >= 20 &&
+            analytics.time_spent_seconds >= 3600 &&
+            snakeBestScore >= 35;
+
+        if (!qualifies) {
+            return res.status(400).json({
+                success: false,
+                message: 'A+ roadmap challenge is not completed yet'
+            });
+        }
+
+        const isUnlimited = user.role === 'admin';
+        if (!isUnlimited) {
+            user.points = Number(user.points || 0) + 10;
+        }
+
+        user.pointsHistory.push({
+            amount: 10,
+            type: 'roadmap_aplus_bonus',
+            description: 'Completed the A+ roadmap challenge',
+            timestamp: new Date()
+        });
+        await user.save();
+
+        res.json({
+            success: true,
+            awarded: true,
+            bonus_amount: 10,
+            roadmap_aplus_claimed: true,
+            unlimited: isUnlimited,
+            new_points: isUnlimited ? null : user.points
+        });
+    } catch (error) {
+        console.error('Roadmap A+ claim error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to claim A+ roadmap reward'
+        });
+    }
+});
+
+app.get('/analytics/me', async (req, res) => {
+    try {
+        const userEmail = String(req.query.user_email || '').trim().toLowerCase();
+        if (!userEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'User email is required'
+            });
+        }
+
+        const user = await User.findOne({ email: userEmail })
+            .select('name email regd_no role pointsHistory analytics createdAt -_id')
+            .lean();
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            user: await buildAnalyticsSnapshot(user)
+        });
+    } catch (error) {
+        console.error('Get analytics me error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load analytics'
+        });
+    }
+});
+
+app.get('/analytics/users', async (req, res) => {
+    try {
+        const adminEmail = String(req.query.admin_email || '').trim().toLowerCase();
+        if (!adminEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Admin email is required'
+            });
+        }
+
+        const adminUser = await User.findOne({ email: adminEmail });
+        if (!adminUser || adminUser.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only admins can view analytics'
+            });
+        }
+
+        const users = await User.find({})
+            .select('name email regd_no role pointsHistory analytics createdAt -_id')
+            .sort({ role: 1, name: 1, email: 1 })
+            .lean();
+
+        res.json({
+            success: true,
+            users: await Promise.all(users.map((user) => buildAnalyticsSnapshot(user)))
+        });
+    } catch (error) {
+        console.error('Get analytics users error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load analytics'
+        });
     }
 });
 

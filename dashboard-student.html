@@ -223,6 +223,16 @@
                     <span class="personal-item-name">Calendar</span>
                     <span class="personal-item-hint">Plan your days</span>
                 </button>
+                <button class="personal-item-btn" onclick="openRoadmapItem()">
+                    <span class="personal-item-icon">🫧</span>
+                    <span class="personal-item-name">Roadmap</span>
+                    <span class="personal-item-hint">Jump between goals</span>
+                </button>
+                <button class="personal-item-btn" onclick="openAnalyticsItem()">
+                    <span class="personal-item-icon">📊</span>
+                    <span class="personal-item-name">Analytics</span>
+                    <span class="personal-item-hint">Your app activity</span>
+                </button>
                 <button class="personal-item-btn" onclick="openSnakeGame()">
                     <span class="personal-item-icon">🐍</span>
                     <span class="personal-item-name">Snake Game</span>
@@ -269,6 +279,51 @@
                     <p id="snakeStatus" class="snake-status">Swipe on the board or use keyboard arrows.</p>
                     <div class="snake-actions">
                         <button class="add-event-btn snake-btn" onclick="restartSnakeGame()">Restart Game</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="analyticsPanel" class="personal-item-panel hidden">
+                <div class="personal-panel-top">
+                    <button class="back-btn-calendar" onclick="showPersonalItemsMenu()">&#10094; Back to Items</button>
+                </div>
+                <div class="analytics-card liquid-glass">
+                    <div class="analytics-topbar">
+                        <div>
+                            <h2 class="calendar-title">📊 Analytics</h2>
+                            <p class="analytics-subtitle">Your personal app activity and banana totals.</p>
+                        </div>
+                        <button type="button" class="analytics-refresh-btn" onclick="loadAnalytics()">Refresh</button>
+                    </div>
+                    <div id="analyticsSummary" class="analytics-summary"></div>
+                    <div id="analyticsDetailCard" class="analytics-users-list">
+                        <div class="analytics-empty-state">Loading analytics...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="roadmapPanel" class="personal-item-panel hidden">
+                <div class="personal-panel-top">
+                    <button class="back-btn-calendar" onclick="showPersonalItemsMenu()">&#10094; Back to Items</button>
+                </div>
+                <div class="roadmap-card liquid-glass">
+                    <div class="analytics-topbar">
+                        <div>
+                            <h2 class="calendar-title">🫧 Roadmap</h2>
+                            <p class="analytics-subtitle">Click each bubble to see your next achievement.</p>
+                        </div>
+                        <button type="button" class="analytics-refresh-btn" onclick="loadRoadmap(true)">Refresh</button>
+                    </div>
+                    <div id="roadmapProgressSummary" class="roadmap-progress-summary"></div>
+                    <div class="roadmap-layout">
+                        <div class="roadmap-track-card">
+                            <div id="roadmapTrack" class="roadmap-track">
+                                <div class="analytics-empty-state">Loading roadmap...</div>
+                            </div>
+                        </div>
+                        <div id="roadmapDetailCard" class="roadmap-detail-card">
+                            <div class="analytics-empty-state">Choose a bubble to view the goal.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -324,6 +379,8 @@
         let currentUserEmail = '';
         let currentUserId = '';
         let isHistoryVisible = false;
+        let analyticsLastSentAt = null;
+        let analyticsFlushIntervalId = null;
         let currentAvatar = {
             hat: 'backpack',
             shirt: 'default',
@@ -388,6 +445,7 @@
             // Update Hair
             avatarHair.className = 'avatar-hair ' + (currentAvatar.hairStyle !== 'none' ? 'hair-' + currentAvatar.hairStyle : '');
             avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
+            updateRoadmapAvatarDisplay();
         }
 
         async function saveAvatar() {
@@ -521,6 +579,46 @@
                 .replaceAll("'", '&#39;');
         }
 
+        function getApiBaseUrl() {
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                return window.location.origin;
+            }
+            return 'http://localhost:3018';
+        }
+
+        function buildApiUrl(pathname, query = {}) {
+            const url = new URL(pathname, `${getApiBaseUrl()}/`);
+            Object.entries(query).forEach(([key, value]) => {
+                const normalizedValue = String(value ?? '').trim();
+                if (normalizedValue) {
+                    url.searchParams.set(key, normalizedValue);
+                }
+            });
+            return url.toString();
+        }
+
+        function resolveCurrentUserEmail() {
+            const directEmail = String(currentUserEmail || '').trim();
+            if (directEmail) {
+                return directEmail;
+            }
+
+            try {
+                const storedData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+                const storedEmail = String(storedData.email || '').trim();
+                if (storedEmail) {
+                    currentUserEmail = storedEmail;
+                    return storedEmail;
+                }
+            } catch (_) {}
+
+            const urlEmail = String(new URL(window.location.href).searchParams.get('email') || '').trim();
+            if (urlEmail) {
+                currentUserEmail = urlEmail;
+            }
+            return urlEmail;
+        }
+
         let notificationStream = null;
         const seenNotificationIds = new Set();
 
@@ -604,6 +702,8 @@
                     const what = m ? m[1].trim() : '';
                     return what ? `🛍️ claimed ${what}` : '🛍️ claimed reward';
                 }
+                case 'roadmap_aplus_bonus':
+                    return '🫧 A+ roadmap bonus';
                 default:
                     return desc || '🧾 points update';
             }
@@ -994,6 +1094,10 @@
         let touchEndX = 0;
         let selectedDateKey = ''; // Format: YYYY-MM-DD
         let activePersonalItem = 'menu';
+        let analyticsLoadedOnce = false;
+        let roadmapLoadedOnce = false;
+        let roadmapSelectedIndex = 'finish';
+        let roadmapSnapshot = null;
         let snakeTouchStartX = 0;
         let snakeTouchStartY = 0;
         let snakeLoop = null;
@@ -1002,9 +1106,12 @@
         let snakeDirection = { x: 1, y: 0 };
         let snakeNextDirection = { x: 1, y: 0 };
         let snakeCells = [];
-        let snakeFood = { x: 10, y: 10 };
+        let snakeFood = { x: 10, y: 10, isBanana: false };
         const snakeBoardSize = 20;
         const snakeTileSize = 16;
+        const snakeBananaBaseChance = 0.0067;
+        const snakeBananaChancePerScore = 0.00045;
+        const snakeBananaMaxChance = 0.08;
 
         function getSnakeBestKey() {
             return `snake-best:${currentUserEmail || 'guest'}:student`;
@@ -1151,6 +1258,10 @@
             document.getElementById('personalItemsTab').classList.add('open');
             if (defaultItem === 'calendar') {
                 openCalendarItem();
+            } else if (defaultItem === 'roadmap') {
+                openRoadmapItem();
+            } else if (defaultItem === 'analytics') {
+                openAnalyticsItem();
             } else if (defaultItem === 'snake') {
                 openSnakeGame();
             } else {
@@ -1168,6 +1279,8 @@
             activePersonalItem = 'menu';
             document.getElementById('personalItemsMenu').classList.remove('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('roadmapPanel').classList.add('hidden');
+            document.getElementById('analyticsPanel').classList.add('hidden');
             document.getElementById('snakePanel').classList.add('hidden');
             closeDayDetail();
             stopSnakeLoop();
@@ -1177,16 +1290,506 @@
             activePersonalItem = 'calendar';
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.remove('hidden');
+            document.getElementById('roadmapPanel').classList.add('hidden');
+            document.getElementById('analyticsPanel').classList.add('hidden');
             document.getElementById('snakePanel').classList.add('hidden');
             closeDayDetail();
             stopSnakeLoop();
             initCalendar();
         }
 
+        function getRoadmapAchievements(user) {
+            const bananaCount = Number(user?.bananas_claimed || 0);
+            const bananasSpent = Number(user?.bananas_spent || 0);
+            const timeSpentSeconds = Number(user?.time_spent_seconds || 0);
+            const snakeBest = Number(localStorage.getItem(getSnakeBestKey()) || 0);
+
+            return [
+                {
+                    icon: '🍌',
+                    title: 'Banana Scout',
+                    description: 'Collect 3 bananas in total across the app.',
+                    current: bananaCount,
+                    target: 3,
+                    progress: `${Math.min(bananaCount, 3)} / 3 🍌`
+                },
+                {
+                    icon: '🐍',
+                    title: 'Snake Rookie',
+                    description: 'Reach a score of 5 in Snake.',
+                    current: snakeBest,
+                    target: 5,
+                    progress: `${Math.min(snakeBest, 5)} / 5 points`
+                },
+                {
+                    icon: '🛍️',
+                    title: 'First Spender',
+                    description: 'Spend 10 bananas on rewards or transfers.',
+                    current: bananasSpent,
+                    target: 10,
+                    progress: `${Math.min(bananasSpent, 10)} / 10 🍌`
+                },
+                {
+                    icon: '🌴',
+                    title: 'Banana Collector',
+                    description: 'Collect 10 bananas in total.',
+                    current: bananaCount,
+                    target: 10,
+                    progress: `${Math.min(bananaCount, 10)} / 10 🍌`
+                },
+                {
+                    icon: '⏳',
+                    title: 'Focus Time',
+                    description: 'Spend 30 minutes inside the app.',
+                    current: timeSpentSeconds,
+                    target: 1800,
+                    progress: `${Math.min(Math.floor(timeSpentSeconds / 60), 30)} / 30 min`
+                },
+                {
+                    icon: '🏆',
+                    title: 'Snake Master',
+                    description: 'Reach a score of 20 in Snake.',
+                    current: snakeBest,
+                    target: 20,
+                    progress: `${Math.min(snakeBest, 20)} / 20 points`
+                }
+            ].map((achievement) => ({
+                ...achievement,
+                achieved: achievement.current >= achievement.target
+            }));
+        }
+
+        function getRoadmapFinishChallenge(user, achievements) {
+            const bananaCount = Number(user?.bananas_claimed || 0);
+            const bananasSpent = Number(user?.bananas_spent || 0);
+            const timeSpentSeconds = Number(user?.time_spent_seconds || 0);
+            const snakeBest = Number(localStorage.getItem(getSnakeBestKey()) || 0);
+            const allMilestonesComplete = achievements.every((achievement) => achievement.achieved);
+            const roadmapClaimed = Boolean(user?.roadmap_aplus_claimed);
+            const requirementItems = [
+                {
+                    label: 'Finish every roadmap bubble',
+                    achieved: allMilestonesComplete,
+                    progress: `${achievements.filter((achievement) => achievement.achieved).length}/${achievements.length}`
+                },
+                {
+                    label: 'Collect 25 bananas',
+                    achieved: bananaCount >= 25,
+                    progress: `${Math.min(bananaCount, 25)} / 25 🍌`
+                },
+                {
+                    label: 'Spend 20 bananas',
+                    achieved: bananasSpent >= 20,
+                    progress: `${Math.min(bananasSpent, 20)} / 20 🍌`
+                },
+                {
+                    label: 'Spend 60 minutes in-app',
+                    achieved: timeSpentSeconds >= 3600,
+                    progress: `${Math.min(Math.floor(timeSpentSeconds / 60), 60)} / 60 min`
+                },
+                {
+                    label: 'Reach 35 points in Snake',
+                    achieved: snakeBest >= 35,
+                    progress: `${Math.min(snakeBest, 35)} / 35 points`
+                }
+            ];
+
+            return {
+                title: 'A+ Mastery',
+                icon: 'A+',
+                description: 'Complete every roadmap bubble and clear this harder final challenge to earn +10 bananas.',
+                achieved: requirementItems.every((item) => item.achieved),
+                rewardClaimed: roadmapClaimed,
+                rewardAmount: 10,
+                requirements: requirementItems
+            };
+        }
+
+        function getRoadmapCurrentIndex(achievements, finishChallenge) {
+            if (finishChallenge.achieved) {
+                return 'finish';
+            }
+            let highestAchievedIndex = 0;
+            achievements.forEach((achievement, index) => {
+                if (achievement.achieved) {
+                    highestAchievedIndex = index;
+                }
+            });
+            return highestAchievedIndex;
+        }
+
+        function updateRoadmapAvatarDisplay() {
+            const avatarHair = document.getElementById('roadmapAvatarHair');
+            const avatarBody = document.getElementById('roadmapAvatarBody');
+            const avatarHat = document.getElementById('roadmapAvatarHat');
+            if (!avatarHair || !avatarBody || !avatarHat) {
+                return;
+            }
+
+            switch (currentAvatar.hat) {
+                case 'backpack':
+                    avatarHat.textContent = '🎒';
+                    avatarHat.style.display = 'block';
+                    break;
+                case 'cap':
+                    avatarHat.textContent = '🧢';
+                    avatarHat.style.display = 'block';
+                    break;
+                case 'headphones':
+                    avatarHat.textContent = '🎧';
+                    avatarHat.style.display = 'block';
+                    break;
+                default:
+                    avatarHat.style.display = 'none';
+            }
+
+            avatarBody.style.background = currentAvatar.shirt === 'default' ? '' : currentAvatar.shirt;
+            avatarHair.className = 'avatar-hair ' + (currentAvatar.hairStyle !== 'none' ? 'hair-' + currentAvatar.hairStyle : '');
+            avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
+        }
+
+        async function claimRoadmapAPlusReward() {
+            const userEmail = resolveCurrentUserEmail();
+            if (!userEmail) {
+                return false;
+            }
+
+            try {
+                const response = await fetch(buildApiUrl('/roadmap-a-plus-claim'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_email: userEmail,
+                        snake_best_score: Number(localStorage.getItem(getSnakeBestKey()) || 0)
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to claim A+ roadmap reward');
+                }
+
+                if (result.awarded) {
+                    roadmapSnapshot = {
+                        ...(roadmapSnapshot || {}),
+                        bananas_claimed: Number(roadmapSnapshot?.bananas_claimed || 0) + Number(result.bonus_amount || 10),
+                        roadmap_aplus_claimed: true
+                    };
+                    if (typeof result.new_points !== 'undefined' && result.new_points !== null) {
+                        updateDisplayedPoints(result.new_points);
+                    }
+                    if (isHistoryVisible) {
+                        loadPointsHistory();
+                    }
+                    if (activePersonalItem === 'analytics') {
+                        loadAnalytics(true);
+                    }
+                } else {
+                    roadmapSnapshot = {
+                        ...(roadmapSnapshot || {}),
+                        roadmap_aplus_claimed: true
+                    };
+                }
+                return Boolean(result.awarded);
+            } catch (error) {
+                console.error('A+ roadmap reward error:', error);
+                return false;
+            }
+        }
+
+        function renderRoadmap() {
+            const achievements = getRoadmapAchievements(roadmapSnapshot || {});
+            const finishChallenge = getRoadmapFinishChallenge(roadmapSnapshot || {}, achievements);
+            const roadmapTrack = document.getElementById('roadmapTrack');
+            const roadmapDetailCard = document.getElementById('roadmapDetailCard');
+            const roadmapProgressSummary = document.getElementById('roadmapProgressSummary');
+
+            if (!achievements.length) {
+                roadmapTrack.innerHTML = '<div class="analytics-empty-state">No roadmap steps available.</div>';
+                roadmapDetailCard.innerHTML = '<div class="analytics-empty-state">No achievement selected.</div>';
+                roadmapProgressSummary.innerHTML = '';
+                return;
+            }
+
+            if (roadmapSelectedIndex !== 'finish' && roadmapSelectedIndex >= achievements.length) {
+                roadmapSelectedIndex = 'finish';
+            }
+
+            const completedCount = achievements.filter((achievement) => achievement.achieved).length + (finishChallenge.rewardClaimed ? 1 : 0);
+            const currentIndex = getRoadmapCurrentIndex(achievements, finishChallenge);
+
+            roadmapProgressSummary.innerHTML = `
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Completed</span>
+                    <strong>${completedCount} / ${achievements.length + 1}</strong>
+                </div>
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Current Bubble</span>
+                    <strong>${currentIndex === 'finish' ? 'A+' : currentIndex + 1}</strong>
+                </div>
+            `;
+
+            roadmapTrack.innerHTML = `
+                <button
+                    type="button"
+                    class="roadmap-finish-badge ${finishChallenge.rewardClaimed ? 'completed' : (finishChallenge.achieved ? 'ready' : 'locked')} ${roadmapSelectedIndex === 'finish' ? 'selected' : ''}"
+                    onclick="selectRoadmapFinish()"
+                >
+                    A+
+                </button>
+                <div class="roadmap-start-badge">🙂</div>
+                ${achievements.map((achievement, index) => `
+                    <div class="roadmap-step ${index % 2 === 0 ? 'left' : 'right'}">
+                        <button
+                            type="button"
+                            class="roadmap-node ${achievement.achieved ? 'completed' : 'locked'} ${index === roadmapSelectedIndex ? 'selected' : ''}"
+                            onclick="selectRoadmapAchievement(${index})"
+                        >
+                            <span class="roadmap-node-icon">${achievement.achieved ? '✓' : achievement.icon}</span>
+                            ${index === currentIndex ? `
+                                <span class="roadmap-avatar-shell">
+                                    <span class="avatar-container student-avatar roadmap-avatar-container">
+                                        <span class="avatar-hair" id="roadmapAvatarHair"></span>
+                                        <span class="avatar-head"></span>
+                                        <span class="avatar-body" id="roadmapAvatarBody"></span>
+                                        <span class="backpack" id="roadmapAvatarHat">🎒</span>
+                                    </span>
+                                </span>
+                            ` : ''}
+                        </button>
+                    </div>
+                `).join('')}
+            `;
+
+            updateRoadmapAvatarDisplay();
+
+            if (roadmapSelectedIndex === 'finish') {
+                roadmapDetailCard.innerHTML = `
+                    <div class="roadmap-detail-top">
+                        <span class="roadmap-detail-icon">A+</span>
+                        <div>
+                            <h3>${escapeHtml(finishChallenge.title)}</h3>
+                            <p>${escapeHtml(finishChallenge.description)}</p>
+                        </div>
+                    </div>
+                    <div class="roadmap-detail-status ${finishChallenge.rewardClaimed ? 'achieved' : (finishChallenge.achieved ? 'ready' : 'pending')}">
+                        ${finishChallenge.rewardClaimed ? 'A+ achieved and +10 bananas awarded' : (finishChallenge.achieved ? 'A+ unlocked. Reward incoming.' : 'Hard challenge not achieved yet')}
+                    </div>
+                    <div class="roadmap-requirements">
+                        ${finishChallenge.requirements.map((item) => `
+                            <div class="roadmap-requirement ${item.achieved ? 'achieved' : 'pending'}">
+                                <span>${item.achieved ? '✓' : '○'} ${escapeHtml(item.label)}</span>
+                                <strong>${escapeHtml(item.progress)}</strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="roadmap-bonus-note">Reward: +${finishChallenge.rewardAmount} bananas</div>
+                `;
+                return;
+            }
+
+            const selectedAchievement = achievements[roadmapSelectedIndex];
+            roadmapDetailCard.innerHTML = `
+                <div class="roadmap-detail-top">
+                    <span class="roadmap-detail-icon">${selectedAchievement.icon}</span>
+                    <div>
+                        <h3>${escapeHtml(selectedAchievement.title)}</h3>
+                        <p>${escapeHtml(selectedAchievement.description)}</p>
+                    </div>
+                </div>
+                <div class="roadmap-detail-status ${selectedAchievement.achieved ? 'achieved' : 'pending'}">
+                    ${selectedAchievement.achieved ? 'Achieved' : 'Not achieved yet'}
+                </div>
+                <div class="roadmap-detail-progress">
+                    <div class="roadmap-detail-progress-bar">
+                        <span style="width: ${Math.min(100, (selectedAchievement.current / selectedAchievement.target) * 100)}%"></span>
+                    </div>
+                    <strong>${escapeHtml(selectedAchievement.progress)}</strong>
+                </div>
+            `;
+        }
+
+        function selectRoadmapAchievement(index) {
+            roadmapSelectedIndex = index;
+            renderRoadmap();
+        }
+
+        function selectRoadmapFinish() {
+            roadmapSelectedIndex = 'finish';
+            renderRoadmap();
+        }
+
+        async function loadRoadmap(forceRefresh = false) {
+            if (!forceRefresh && roadmapLoadedOnce && activePersonalItem !== 'roadmap') {
+                return;
+            }
+
+            document.getElementById('roadmapTrack').innerHTML = '<div class="analytics-empty-state">Loading roadmap...</div>';
+            document.getElementById('roadmapDetailCard').innerHTML = '<div class="analytics-empty-state">Checking achievements...</div>';
+
+            try {
+                const userEmail = resolveCurrentUserEmail();
+                if (!userEmail) {
+                    throw new Error('User email not available. Please log in again.');
+                }
+
+                const response = await fetch(buildApiUrl('/analytics/me', {
+                    user_email: userEmail
+                }));
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load roadmap');
+                }
+
+                roadmapSnapshot = result.user || {};
+                const finishChallenge = getRoadmapFinishChallenge(roadmapSnapshot, getRoadmapAchievements(roadmapSnapshot));
+                if (finishChallenge.achieved && !finishChallenge.rewardClaimed) {
+                    await claimRoadmapAPlusReward();
+                }
+                roadmapLoadedOnce = true;
+                renderRoadmap();
+            } catch (error) {
+                document.getElementById('roadmapProgressSummary').innerHTML = '';
+                document.getElementById('roadmapTrack').innerHTML = `<div class="analytics-empty-state">${escapeHtml(error.message || 'Failed to load roadmap.')}</div>`;
+                document.getElementById('roadmapDetailCard').innerHTML = '<div class="analytics-empty-state">Unable to show roadmap right now.</div>';
+            }
+        }
+
+        function formatAnalyticsDuration(totalSeconds) {
+            const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+            const hours = Math.floor(safeSeconds / 3600);
+            const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+            if (!hours && !minutes) {
+                return `${safeSeconds}s`;
+            }
+            if (!hours) {
+                return `${minutes}m`;
+            }
+            return `${hours}h ${minutes}m`;
+        }
+
+        function renderAnalytics(user) {
+            const summary = document.getElementById('analyticsSummary');
+            const detailCard = document.getElementById('analyticsDetailCard');
+
+            if (!user) {
+                summary.innerHTML = '';
+                detailCard.innerHTML = '<div class="analytics-empty-state">No analytics data available yet.</div>';
+                return;
+            }
+
+            summary.innerHTML = `
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Time In App</span>
+                    <strong>${escapeHtml(formatAnalyticsDuration(user.time_spent_seconds))}</strong>
+                </div>
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Sessions Today</span>
+                    <strong>${escapeHtml(user.daily_sessions || 0)}</strong>
+                </div>
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Bananas Claimed</span>
+                    <strong>${escapeHtml(user.bananas_claimed || 0)} 🍌</strong>
+                </div>
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Bananas Spent</span>
+                    <strong>${escapeHtml(user.bananas_spent || 0)} 🍌</strong>
+                </div>
+            `;
+
+            detailCard.innerHTML = `
+                <div class="analytics-user-card">
+                    <div class="analytics-user-header">
+                        <div>
+                            <h3>${escapeHtml(user.name || 'Unknown User')}</h3>
+                            <p>${escapeHtml(user.email || '')}</p>
+                        </div>
+                        <span class="analytics-role-pill">${escapeHtml(user.role || 'user')}</span>
+                    </div>
+                    <div class="analytics-stats-grid">
+                        <div class="analytics-stat-box">
+                            <span class="analytics-stat-label">Time Spent In-App</span>
+                            <strong>${escapeHtml(formatAnalyticsDuration(user.time_spent_seconds))}</strong>
+                        </div>
+                        <div class="analytics-stat-box">
+                            <span class="analytics-stat-label">Sessions Today</span>
+                            <strong>${escapeHtml(user.daily_sessions || 0)}</strong>
+                        </div>
+                        <div class="analytics-stat-box">
+                            <span class="analytics-stat-label">Bananas Claimed</span>
+                            <strong>${escapeHtml(user.bananas_claimed || 0)} 🍌</strong>
+                        </div>
+                        <div class="analytics-stat-box">
+                            <span class="analytics-stat-label">Bananas Spent</span>
+                            <strong>${escapeHtml(user.bananas_spent || 0)} 🍌</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadAnalytics(forceRefresh = false) {
+            const detailCard = document.getElementById('analyticsDetailCard');
+            if (!forceRefresh && analyticsLoadedOnce && activePersonalItem !== 'analytics') {
+                return;
+            }
+
+            detailCard.innerHTML = '<div class="analytics-empty-state">Loading analytics...</div>';
+
+            try {
+                const userEmail = resolveCurrentUserEmail();
+                if (!userEmail) {
+                    throw new Error('User email not available. Please log in again.');
+                }
+
+                const response = await fetch(buildApiUrl('/analytics/me', {
+                    user_email: userEmail
+                }));
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load analytics');
+                }
+
+                analyticsLoadedOnce = true;
+                renderAnalytics(result.user || null);
+            } catch (error) {
+                document.getElementById('analyticsSummary').innerHTML = '';
+                detailCard.innerHTML = `<div class="analytics-empty-state">${escapeHtml(error.message || 'Failed to load analytics.')}</div>`;
+            }
+        }
+
+        function openAnalyticsItem() {
+            activePersonalItem = 'analytics';
+            document.getElementById('personalItemsMenu').classList.add('hidden');
+            document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('roadmapPanel').classList.add('hidden');
+            document.getElementById('analyticsPanel').classList.remove('hidden');
+            document.getElementById('snakePanel').classList.add('hidden');
+            closeDayDetail();
+            stopSnakeLoop();
+            loadAnalytics(true);
+        }
+
+        function openRoadmapItem() {
+            activePersonalItem = 'roadmap';
+            document.getElementById('personalItemsMenu').classList.add('hidden');
+            document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('roadmapPanel').classList.remove('hidden');
+            document.getElementById('analyticsPanel').classList.add('hidden');
+            document.getElementById('snakePanel').classList.add('hidden');
+            closeDayDetail();
+            stopSnakeLoop();
+            loadRoadmap(true);
+        }
+
         function openSnakeGame() {
             activePersonalItem = 'snake';
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('roadmapPanel').classList.add('hidden');
+            document.getElementById('analyticsPanel').classList.add('hidden');
             document.getElementById('snakePanel').classList.remove('hidden');
             loadSnakeBestScore();
             restartSnakeGame();
@@ -1214,6 +1817,48 @@
             document.getElementById('snakeBest').textContent = String(snakeBestScore);
         }
 
+        function getSnakeBananaChance() {
+            return Math.min(
+                snakeBananaMaxChance,
+                snakeBananaBaseChance + (snakeScore * snakeBananaChancePerScore)
+            );
+        }
+
+        function isRareSnakeBanana() {
+            return Math.random() < getSnakeBananaChance();
+        }
+
+        async function claimSnakeBananaReward() {
+            const userEmail = resolveCurrentUserEmail();
+            if (!userEmail) {
+                return;
+            }
+
+            try {
+                const response = await fetch(buildApiUrl('/snake-banana-claim'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_email: userEmail })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to claim snake banana reward');
+                }
+
+                if (typeof result.new_points !== 'undefined' && result.new_points !== null) {
+                    updateDisplayedPoints(result.new_points);
+                }
+                if (isHistoryVisible) {
+                    loadPointsHistory();
+                }
+                if (activePersonalItem === 'analytics') {
+                    loadAnalytics(true);
+                }
+            } catch (error) {
+                console.error('Snake banana reward error:', error);
+            }
+        }
+
         function drawSnakeGame() {
             const canvas = document.getElementById('snakeCanvas');
             const ctx = canvas.getContext('2d');
@@ -1222,13 +1867,24 @@
             ctx.fillStyle = 'rgba(141, 110, 99, 0.12)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = '#ef5350';
-            ctx.fillRect(
-                snakeFood.x * snakeTileSize,
-                snakeFood.y * snakeTileSize,
-                snakeTileSize - 2,
-                snakeTileSize - 2
-            );
+            if (snakeFood.isBanana) {
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    '🍌',
+                    (snakeFood.x * snakeTileSize) + (snakeTileSize / 2),
+                    (snakeFood.y * snakeTileSize) + (snakeTileSize / 2)
+                );
+            } else {
+                ctx.fillStyle = '#ef5350';
+                ctx.fillRect(
+                    snakeFood.x * snakeTileSize,
+                    snakeFood.y * snakeTileSize,
+                    snakeTileSize - 2,
+                    snakeTileSize - 2
+                );
+            }
 
             snakeCells.forEach((cell, index) => {
                 ctx.fillStyle = index === 0 ? '#4caf50' : '#66bb6a';
@@ -1245,7 +1901,8 @@
             do {
                 snakeFood = {
                     x: Math.floor(Math.random() * snakeBoardSize),
-                    y: Math.floor(Math.random() * snakeBoardSize)
+                    y: Math.floor(Math.random() * snakeBoardSize),
+                    isBanana: isRareSnakeBanana()
                 };
             } while (snakeCells.some((cell) => cell.x === snakeFood.x && cell.y === snakeFood.y));
         }
@@ -1312,12 +1969,18 @@
 
             if (head.x === snakeFood.x && head.y === snakeFood.y) {
                 snakeScore += 1;
+                const ateRareBanana = snakeFood.isBanana;
                 if (snakeScore > snakeBestScore) {
                     snakeBestScore = snakeScore;
                     localStorage.setItem(getSnakeBestKey(), String(snakeBestScore));
                 }
                 placeSnakeFood();
-                updateSnakeStatus('Nice! Keep going.');
+                if (ateRareBanana) {
+                    updateSnakeStatus('Rare banana found! +1 banana point.');
+                    claimSnakeBananaReward();
+                } else {
+                    updateSnakeStatus('Nice! Keep going.');
+                }
             } else {
                 snakeCells.pop();
             }
@@ -1392,11 +2055,73 @@
             }
         }
 
+        async function sendUsageAnalytics(options = {}) {
+            const { useBeacon = false } = options;
+            if (!currentUserEmail || !analyticsLastSentAt) {
+                return;
+            }
+
+            const now = Date.now();
+            const durationSeconds = Math.floor((now - analyticsLastSentAt) / 1000);
+            if (durationSeconds <= 0) {
+                return;
+            }
+
+            analyticsLastSentAt = now;
+            const payload = JSON.stringify({
+                user_email: currentUserEmail,
+                duration_seconds: durationSeconds
+            });
+
+            if (useBeacon && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon(buildApiUrl('/analytics/session'), blob);
+                return;
+            }
+
+            try {
+                await fetch(buildApiUrl('/analytics/session'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload,
+                    keepalive: true
+                });
+            } catch (error) {
+                console.error('Usage analytics error:', error);
+            }
+        }
+
+        function handleAnalyticsVisibilityChange() {
+            if (document.visibilityState === 'hidden') {
+                sendUsageAnalytics({ useBeacon: true });
+                return;
+            }
+
+            analyticsLastSentAt = Date.now();
+        }
+
+        function startUsageAnalyticsTracking() {
+            if (!currentUserEmail) {
+                return;
+            }
+
+            analyticsLastSentAt = Date.now();
+
+            if (analyticsFlushIntervalId) {
+                clearInterval(analyticsFlushIntervalId);
+            }
+
+            analyticsFlushIntervalId = window.setInterval(() => {
+                sendUsageAnalytics();
+            }, 30000);
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             if (typeof currentUserEmail === 'string' && currentUserEmail) {
                 connectNotificationStream();
                 await loadMissedNotifications();
                 refreshCurrentPoints();
+                startUsageAnalyticsTracking();
             }
             
             const avatarContainer = document.getElementById('avatarContainer');
@@ -1411,6 +2136,10 @@
                 snakeCanvas.addEventListener('touchstart', handleSnakeTouchStart, { passive: true });
                 snakeCanvas.addEventListener('touchend', handleSnakeTouchEnd, { passive: true });
             }
+            document.addEventListener('visibilitychange', handleAnalyticsVisibilityChange);
+            window.addEventListener('beforeunload', () => {
+                sendUsageAnalytics({ useBeacon: true });
+            });
             loadSnakeBestScore();
             
             // Add event form submit
