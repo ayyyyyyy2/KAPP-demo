@@ -8,11 +8,6 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-    <!-- Arrow Button for Personal Items -->
-    <div class="personal-items-arrow" onclick="openPersonalItemsTab()">
-        <span>👜</span>
-    </div>
-
     <button type="button" class="bug-report-btn" onclick="openBugReportModal()" aria-label="Report a bug">🐞</button>
 
     <div class="dashboard-shell">
@@ -48,6 +43,10 @@
                             <div class="crown" id="avatarHat">👑</div>
                         </div>
                     </div>
+
+                    <button type="button" class="personal-items-arrow" onclick="openPersonalItemsTab()">
+                        <span>👜</span>
+                    </button>
 
                     <div class="action-buttons action-buttons-parent">
                         <button class="action-btn" onclick="openYourOffers()">Claim Points</button>

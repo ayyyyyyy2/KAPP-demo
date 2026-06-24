@@ -1861,34 +1861,33 @@ body {
         margin: 5px 0;
     }
 
-/* Personal Items Arrow Button */
+/* Personal Items Button */
 .personal-items-arrow {
-    position: fixed;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+    position: relative;
     background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
     color: white;
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 28px;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(26, 35, 126, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 500;
+    z-index: 1;
+    border: none;
+    margin-top: -4px;
 }
 
 .personal-items-arrow:hover {
-    transform: translateY(-50%) scale(1.15);
+    transform: scale(1.12);
     box-shadow: 0 6px 16px rgba(26, 35, 126, 0.5);
 }
 
 .personal-items-arrow:active {
-    transform: translateY(-50%) scale(0.95);
+    transform: scale(0.95);
 }
 
 .bug-report-btn {
@@ -2993,7 +2992,6 @@ body {
     .personal-items-arrow {
         width: 48px;
         height: 48px;
-        right: 8px;
         font-size: 22px;
     }
 
@@ -3392,7 +3390,6 @@ body {
     .personal-items-arrow {
         width: 48px;
         height: 48px;
-        right: 8px;
         font-size: 22px;
     }
 
