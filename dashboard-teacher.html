@@ -294,9 +294,12 @@
                         <span>Best: <strong id="snakeBest">0</strong></span>
                     </div>
                     <canvas id="snakeCanvas" class="snake-canvas" width="320" height="320"></canvas>
-                    <p id="snakeStatus" class="snake-status">Swipe on the board or use keyboard arrows.</p>
-                    <div class="snake-actions">
-                        <button class="add-event-btn snake-btn" onclick="restartSnakeGame()">Restart Game</button>
+                    <p id="snakeStatus" class="snake-status"></p>
+                    <div id="snakeGameOverOverlay" class="snake-game-over-overlay">
+                        <div class="snake-game-over-card">
+                            <p class="snake-game-over-title">Game Over</p>
+                            <button class="add-event-btn snake-btn" onclick="restartSnakeGame()">Restart Game</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1965,6 +1968,14 @@
             document.getElementById('snakeStatus').textContent = message;
         }
 
+        function setSnakeGameOverOverlay(isVisible) {
+            const overlay = document.getElementById('snakeGameOverOverlay');
+            if (!overlay) {
+                return;
+            }
+            overlay.classList.toggle('is-visible', isVisible);
+        }
+
         function updateSnakeScore() {
             document.getElementById('snakeScore').textContent = String(snakeScore);
             document.getElementById('snakeBest').textContent = String(snakeBestScore);
@@ -2080,6 +2091,7 @@
         }
 
         function restartSnakeGame() {
+            setSnakeGameOverOverlay(false);
             snakeScore = 0;
             snakeDirection = { x: 1, y: 0 };
             snakeNextDirection = { x: 1, y: 0 };
@@ -2090,7 +2102,7 @@
             ];
             placeSnakeFood();
             updateSnakeScore();
-            updateSnakeStatus('Swipe on the board or use keyboard arrows.');
+            updateSnakeStatus('');
             drawSnakeGame();
             startSnakeLoop();
         }
@@ -2098,6 +2110,7 @@
         function endSnakeGame() {
             stopSnakeLoop();
             updateSnakeStatus('Game over. Press Restart Game to play again.');
+            setSnakeGameOverOverlay(true);
         }
 
         function stepSnakeGame() {

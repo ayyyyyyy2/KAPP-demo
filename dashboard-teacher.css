@@ -1726,6 +1726,42 @@ body {
     text-align: center;
 }
 
+.snake-game-over-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(87, 63, 0, 0.26);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 2100;
+}
+
+.snake-game-over-overlay.is-visible {
+    display: flex;
+}
+
+.snake-game-over-card {
+    width: min(100%, 320px);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(184, 134, 11, 0.18);
+    border-radius: 24px;
+    padding: 26px 22px;
+    box-shadow: 0 22px 48px rgba(122, 86, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.snake-game-over-title {
+    margin: 0 0 16px;
+    color: #7a5600;
+    font-size: 24px;
+    font-weight: 800;
+}
+
 .snake-stats {
     display: flex;
     justify-content: space-between;
@@ -1752,14 +1788,17 @@ body {
     margin-bottom: 18px;
 }
 
-.snake-actions {
-    display: flex;
-    justify-content: center;
+.snake-status:empty {
+    display: none;
 }
 
 .snake-btn {
     margin-bottom: 0;
-    max-width: 280px;
+    width: auto;
+    min-width: 150px;
+    max-width: 180px;
+    padding: 12px 18px;
+    align-self: flex-end;
 }
 
 .add-event-btn:hover {
