@@ -231,8 +231,8 @@
         <div class="calendar-container liquid-glass personal-items-container">
             <div class="calendar-header personal-items-header">
                 <span class="close-calendar" onclick="closePersonalItemsTab()">&times;</span>
-                <h2 class="calendar-title">👜 Personal Items</h2>
-                <p class="personal-items-subtitle">Choose which item to pull out.</p>
+                <h2 id="personalItemsTitle" class="calendar-title">👜 Personal Items</h2>
+                <p id="personalItemsSubtitle" class="personal-items-subtitle">Choose which item to pull out.</p>
             </div>
 
             <div id="personalItemsMenu" class="personal-items-menu">
@@ -1411,8 +1411,21 @@
             stopSnakeLoop();
         }
 
+        function updatePersonalItemsHeaderVisibility(showHeader) {
+            const titleElement = document.getElementById('personalItemsTitle');
+            const subtitleElement = document.getElementById('personalItemsSubtitle');
+            const displayValue = showHeader ? '' : 'none';
+            if (titleElement) {
+                titleElement.style.display = displayValue;
+            }
+            if (subtitleElement) {
+                subtitleElement.style.display = displayValue;
+            }
+        }
+
         function showPersonalItemsMenu() {
             activePersonalItem = 'menu';
+            updatePersonalItemsHeaderVisibility(true);
             document.getElementById('personalItemsMenu').classList.remove('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
             document.getElementById('roadmapPanel').classList.add('hidden');
@@ -1424,6 +1437,7 @@
 
         function openCalendarItem() {
             activePersonalItem = 'calendar';
+            updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.remove('hidden');
             document.getElementById('roadmapPanel').classList.add('hidden');
@@ -1898,6 +1912,7 @@
 
         function openAnalyticsItem() {
             activePersonalItem = 'analytics';
+            updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
             document.getElementById('roadmapPanel').classList.add('hidden');
@@ -1910,6 +1925,7 @@
 
         function openRoadmapItem() {
             activePersonalItem = 'roadmap';
+            updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
             document.getElementById('roadmapPanel').classList.remove('hidden');
@@ -1922,6 +1938,7 @@
 
         function openSnakeGame() {
             activePersonalItem = 'snake';
+            updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
             document.getElementById('roadmapPanel').classList.add('hidden');

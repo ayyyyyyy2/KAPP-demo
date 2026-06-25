@@ -417,9 +417,9 @@ body {
     z-index: 1000;
     transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 20px;
+    padding: calc(env(safe-area-inset-top) + 88px) 20px calc(env(safe-area-inset-bottom) + 120px);
 }
 
 .calendar-tab.open {
@@ -429,8 +429,10 @@ body {
 .calendar-container {
     max-width: 700px;
     width: 100%;
-    max-height: 90vh;
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 228px);
     overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     border-radius: 20px;
     padding: 30px;
     position: relative;
@@ -438,6 +440,7 @@ body {
 
 .personal-items-container {
     max-width: 760px;
+    width: min(100%, 760px);
 }
 
 .calendar-header {
@@ -1308,7 +1311,15 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 6px 32px 150px;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.welcome-scroll-parent::-webkit-scrollbar,
+.calendar-container::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .welcome-content.welcome-section-parent {
