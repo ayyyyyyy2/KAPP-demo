@@ -2059,8 +2059,13 @@ body {
 }
 
 .calendar-header {
+    width: 100%;
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: clamp(14px, 2vw, 30px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(10px, 1.6vw, 18px);
 }
 
 .personal-items-subtitle {
@@ -2115,6 +2120,38 @@ body {
 
 .personal-panel-top {
     margin-bottom: 16px;
+}
+
+.calendar-personal-item-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    width: min(100%, 760px);
+    min-width: min(100%, 280px);
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.calendar-personal-item-panel .personal-panel-top,
+.calendar-personal-item-panel .calendar-header {
+    flex-shrink: 0;
+}
+
+.calendar-personal-item-panel .calendar-grid,
+.calendar-personal-item-panel .day-detail {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.calendar-personal-item-panel .calendar-grid::-webkit-scrollbar,
+.calendar-personal-item-panel .day-detail::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .analytics-card {
@@ -2587,9 +2624,9 @@ body {
 }
 
 .calendar-title {
-    font-size: 32px;
+    font-size: clamp(24px, 3vw, 32px);
     color: #1a237e;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     font-weight: 700;
 }
 
@@ -2597,7 +2634,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
+    width: 100%;
+    gap: clamp(8px, 1.8vw, 20px);
 }
 
 .nav-btn {
@@ -2605,9 +2643,10 @@ body {
     color: white;
     border: none;
     border-radius: 10px;
-    width: 50px;
-    height: 50px;
-    font-size: 20px;
+    width: clamp(40px, 6vw, 50px);
+    height: clamp(40px, 6vw, 50px);
+    flex: 0 0 clamp(40px, 6vw, 50px);
+    font-size: clamp(16px, 2.2vw, 20px);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -2618,16 +2657,22 @@ body {
 }
 
 .month-year {
-    font-size: 24px;
+    font-size: clamp(18px, 2.5vw, 24px);
     font-weight: 700;
     color: #1a237e;
-    min-width: 200px;
+    min-width: 0;
+    flex: 1;
+    text-align: center;
 }
 
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: clamp(4px, 0.9vw, 10px);
+    align-items: stretch;
 }
 
 .calendar-grid.hidden {
@@ -2638,24 +2683,28 @@ body {
     text-align: center;
     font-weight: 700;
     color: #1a237e;
-    padding: 10px;
-    font-size: 14px;
+    padding: clamp(6px, 1vw, 10px) 0;
+    font-size: clamp(11px, 1.5vw, 14px);
     text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-width: 0;
 }
 
 .day-cell {
     aspect-ratio: 1;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(26, 35, 126, 0.05);
     border-radius: 10px;
-    font-size: 18px;
+    font-size: clamp(13px, 2vw, 18px);
     font-weight: 600;
     color: #1a237e;
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    min-width: 0;
 }
 
 .day-cell:hover {
