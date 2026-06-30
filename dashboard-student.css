@@ -1394,7 +1394,7 @@ body {
     width: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px 32px 150px;
+    padding: 6px 18px 150px;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -1687,7 +1687,7 @@ body {
 
 @media (max-width: 767px) {
     .scrollable-content-layer {
-        padding: 100px 14px 138px;
+        padding: 100px 8px 138px;
     }
 
     .welcome-container {
@@ -1701,7 +1701,7 @@ body {
     }
 
     .welcome-scroll-parent {
-        padding: 6px 18px 146px;
+        padding: 6px 10px 146px;
     }
 
     .welcome-content.welcome-section-parent {
