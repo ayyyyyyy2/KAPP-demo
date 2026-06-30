@@ -1163,6 +1163,31 @@ app.get('/users', async (req, res) => {
     }
 });
 
+app.get('/leaderboard/students', async (_req, res) => {
+    try {
+        const users = await User.find({ role: 'user' })
+            .select('name email points -_id')
+            .sort({ points: -1, name: 1, email: 1 })
+            .limit(3)
+            .lean();
+
+        res.json({
+            success: true,
+            users: users.map((user) => ({
+                name: user.name || '',
+                email: user.email || '',
+                points: Number(user.points || 0)
+            }))
+        });
+    } catch (error) {
+        console.error('Get student leaderboard error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load student leaderboard'
+        });
+    }
+});
+
 app.get('/get-points-history/:email', async (req, res) => {
     try {
         const { email } = req.params;

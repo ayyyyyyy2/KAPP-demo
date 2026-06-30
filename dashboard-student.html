@@ -50,6 +50,19 @@
                             <span>👜</span>
                         </button>
 
+                        <section class="student-leaderboard-card" aria-labelledby="studentLeaderboardTitle">
+                            <div class="student-leaderboard-header">
+                                <div>
+                                    <h2 id="studentLeaderboardTitle" class="student-leaderboard-title">Top Students</h2>
+                                    <p class="student-leaderboard-subtitle">Highest points in the system</p>
+                                </div>
+                                <span class="student-leaderboard-badge">Top 3</span>
+                            </div>
+                            <div id="studentLeaderboard" class="student-leaderboard-list">
+                                <div class="student-leaderboard-empty">Loading leaderboard...</div>
+                            </div>
+                        </section>
+
                         <div class="action-buttons action-buttons-parent">
                             <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
                             <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
@@ -320,7 +333,7 @@
                     <div class="analytics-topbar">
                         <div>
                             <h2 class="calendar-title">🫧 Roadmap</h2>
-                            <p class="analytics-subtitle">Click each bubble to see your next achievement.</p>
+                            <p class="analytics-subtitle">Drag your avatar onto any bubble or tap a bubble to inspect the goal.</p>
                         </div>
                         <button type="button" class="analytics-refresh-btn" onclick="loadRoadmap(true)">Refresh</button>
                     </div>
@@ -737,6 +750,81 @@
                     sessionStorage.setItem('userData', JSON.stringify(data));
                 }
             } catch (e) {}
+            loadStudentLeaderboard();
+        }
+
+        function renderStudentLeaderboard(users = []) {
+            const leaderboardElement = document.getElementById('studentLeaderboard');
+            if (!leaderboardElement) {
+                return;
+            }
+
+            if (!Array.isArray(users) || !users.length) {
+                leaderboardElement.innerHTML = '<div class="student-leaderboard-empty">No student scores available yet.</div>';
+                return;
+            }
+
+            leaderboardElement.innerHTML = users.map((user, index) => `
+                <div class="student-leaderboard-item">
+                    <div class="student-leaderboard-user">
+                        <span class="student-leaderboard-rank">#${index + 1}</span>
+                        <strong class="student-leaderboard-name">${escapeHtml(user.name || user.email || 'Student')}</strong>
+                    </div>
+                    <strong class="student-leaderboard-points">${escapeHtml(String(user.points ?? 0))} 🍌</strong>
+                </div>
+            `).join('');
+        }
+
+        function normalizeStudentLeaderboardUsers(users = []) {
+            if (!Array.isArray(users)) {
+                return [];
+            }
+
+            return users
+                .filter((user) => String(user?.role || 'user').toLowerCase() === 'user')
+                .map((user) => ({
+                    name: String(user?.name || '').trim(),
+                    email: String(user?.email || '').trim(),
+                    points: Number(user?.points || 0)
+                }))
+                .sort((leftUser, rightUser) => {
+                    if (rightUser.points !== leftUser.points) {
+                        return rightUser.points - leftUser.points;
+                    }
+                    return leftUser.name.localeCompare(rightUser.name || rightUser.email);
+                })
+                .slice(0, 3);
+        }
+
+        async function loadStudentLeaderboard() {
+            const leaderboardElement = document.getElementById('studentLeaderboard');
+            if (!leaderboardElement) {
+                return;
+            }
+
+            try {
+                const response = await fetch(buildApiUrl('/leaderboard/students'));
+                if (!response.ok) {
+                    throw new Error('Leaderboard endpoint unavailable');
+                }
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to load leaderboard');
+                }
+                renderStudentLeaderboard(normalizeStudentLeaderboardUsers(result.users || []));
+                return;
+            } catch (_) {}
+
+            try {
+                const fallbackResponse = await fetch(buildApiUrl('/users'));
+                if (!fallbackResponse.ok) {
+                    throw new Error('Users fallback unavailable');
+                }
+                const fallbackUsers = await fallbackResponse.json();
+                renderStudentLeaderboard(normalizeStudentLeaderboardUsers(fallbackUsers));
+            } catch (error) {
+                leaderboardElement.innerHTML = '<div class="student-leaderboard-empty">Unable to load leaderboard right now.</div>';
+            }
         }
 
         async function loadPointsHistory() {
@@ -1104,7 +1192,9 @@
         let activePersonalItem = 'menu';
         let analyticsLoadedOnce = false;
         let roadmapLoadedOnce = false;
-        let roadmapSelectedIndex = 'finish';
+        let roadmapSelectedIndex = null;
+        let roadmapIsDragging = false;
+        let roadmapDragHoverTarget = '';
         let roadmapSnapshot = null;
         let snakeTouchStartX = 0;
         let snakeTouchStartY = 0;
@@ -1470,6 +1560,79 @@
             avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
         }
 
+        function getRoadmapSelectedLabel(selectedIndex) {
+            return selectedIndex === 'finish' ? 'A+' : Number(selectedIndex) + 1;
+        }
+
+        function getRoadmapAvatarMarkup() {
+            return `
+                <span
+                    class="roadmap-avatar-shell"
+                    draggable="true"
+                    ondragstart="handleRoadmapAvatarDragStart(event)"
+                    ondragend="handleRoadmapAvatarDragEnd()"
+                >
+                    <span class="avatar-container student-avatar roadmap-avatar-container">
+                        <span class="avatar-hair" id="roadmapAvatarHair"></span>
+                        <span class="avatar-head"></span>
+                        <span class="avatar-body" id="roadmapAvatarBody"></span>
+                        <span class="backpack" id="roadmapAvatarHat">🎒</span>
+                    </span>
+                </span>
+            `;
+        }
+
+        function syncRoadmapDragStyles() {
+            const roadmapTrack = document.getElementById('roadmapTrack');
+            if (!roadmapTrack) {
+                return;
+            }
+
+            roadmapTrack.classList.toggle('is-dragging', roadmapIsDragging);
+            roadmapTrack.querySelectorAll('[data-roadmap-target]').forEach((targetElement) => {
+                const targetKey = String(targetElement.dataset.roadmapTarget || '');
+                const isHoverTarget = roadmapIsDragging && roadmapDragHoverTarget === targetKey;
+                targetElement.classList.toggle('drop-hover', isHoverTarget);
+            });
+        }
+
+        function handleRoadmapAvatarDragStart(event) {
+            roadmapIsDragging = true;
+            roadmapDragHoverTarget = '';
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', String(roadmapSelectedIndex));
+            }
+            syncRoadmapDragStyles();
+        }
+
+        function handleRoadmapAvatarDragEnd() {
+            roadmapIsDragging = false;
+            roadmapDragHoverTarget = '';
+            syncRoadmapDragStyles();
+        }
+
+        function handleRoadmapBubbleDragOver(event, targetIndex) {
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'move';
+            }
+            roadmapIsDragging = true;
+            roadmapDragHoverTarget = String(targetIndex);
+            syncRoadmapDragStyles();
+        }
+
+        function handleRoadmapBubbleDrop(event, targetIndex) {
+            event.preventDefault();
+            roadmapIsDragging = false;
+            roadmapDragHoverTarget = '';
+            if (targetIndex === 'finish') {
+                selectRoadmapFinish();
+                return;
+            }
+            selectRoadmapAchievement(Number(targetIndex));
+        }
+
         async function claimRoadmapAPlusReward() {
             const userEmail = resolveCurrentUserEmail();
             if (!userEmail) {
@@ -1532,12 +1695,17 @@
                 return;
             }
 
-            if (roadmapSelectedIndex !== 'finish' && roadmapSelectedIndex >= achievements.length) {
-                roadmapSelectedIndex = 'finish';
+            const currentIndex = getRoadmapCurrentIndex(achievements, finishChallenge);
+            const hasValidSelection = roadmapSelectedIndex === 'finish' || (
+                Number.isInteger(roadmapSelectedIndex) &&
+                roadmapSelectedIndex >= 0 &&
+                roadmapSelectedIndex < achievements.length
+            );
+            if (!hasValidSelection) {
+                roadmapSelectedIndex = currentIndex;
             }
 
             const completedCount = achievements.filter((achievement) => achievement.achieved).length + (finishChallenge.rewardClaimed ? 1 : 0);
-            const currentIndex = getRoadmapCurrentIndex(achievements, finishChallenge);
 
             roadmapProgressSummary.innerHTML = `
                 <div class="analytics-summary-card">
@@ -1545,44 +1713,51 @@
                     <strong>${completedCount} / ${achievements.length + 1}</strong>
                 </div>
                 <div class="analytics-summary-card">
-                    <span class="analytics-summary-label">Current Bubble</span>
+                    <span class="analytics-summary-label">Progress Bubble</span>
                     <strong>${currentIndex === 'finish' ? 'A+' : currentIndex + 1}</strong>
+                </div>
+                <div class="analytics-summary-card">
+                    <span class="analytics-summary-label">Active Bubble</span>
+                    <strong>${getRoadmapSelectedLabel(roadmapSelectedIndex)}</strong>
                 </div>
             `;
 
             roadmapTrack.innerHTML = `
-                <button
-                    type="button"
-                    class="roadmap-finish-badge ${finishChallenge.rewardClaimed ? 'completed' : (finishChallenge.achieved ? 'ready' : 'locked')} ${roadmapSelectedIndex === 'finish' ? 'selected' : ''}"
-                    onclick="selectRoadmapFinish()"
-                >
-                    A+
-                </button>
-                <div class="roadmap-start-badge">🙂</div>
-                ${achievements.map((achievement, index) => `
-                    <div class="roadmap-step ${index % 2 === 0 ? 'left' : 'right'}">
-                        <button
-                            type="button"
-                            class="roadmap-node ${achievement.achieved ? 'completed' : 'locked'} ${index === roadmapSelectedIndex ? 'selected' : ''}"
-                            onclick="selectRoadmapAchievement(${index})"
-                        >
-                            <span class="roadmap-node-icon">${achievement.achieved ? '✓' : achievement.icon}</span>
-                            ${index === currentIndex ? `
-                                <span class="roadmap-avatar-shell">
-                                    <span class="avatar-container student-avatar roadmap-avatar-container">
-                                        <span class="avatar-hair" id="roadmapAvatarHair"></span>
-                                        <span class="avatar-head"></span>
-                                        <span class="avatar-body" id="roadmapAvatarBody"></span>
-                                        <span class="backpack" id="roadmapAvatarHat">🎒</span>
-                                    </span>
-                                </span>
-                            ` : ''}
-                        </button>
-                    </div>
-                `).join('')}
+                <div class="roadmap-timeline">
+                    <div class="roadmap-track-line"></div>
+                    <button
+                        type="button"
+                        class="roadmap-finish-badge roadmap-drop-target ${finishChallenge.rewardClaimed ? 'completed' : (finishChallenge.achieved ? 'ready' : 'locked')} ${roadmapSelectedIndex === 'finish' ? 'selected' : ''}"
+                        data-roadmap-target="finish"
+                        onclick="selectRoadmapFinish()"
+                        ondragover="handleRoadmapBubbleDragOver(event, 'finish')"
+                        ondrop="handleRoadmapBubbleDrop(event, 'finish')"
+                    >
+                        <span class="roadmap-bubble-icon">A+</span>
+                        ${roadmapSelectedIndex === 'finish' ? getRoadmapAvatarMarkup() : ''}
+                    </button>
+                    ${achievements.map((achievement, index) => `
+                        <div class="roadmap-step ${index % 2 === 0 ? 'left' : 'right'}">
+                            <button
+                                type="button"
+                                class="roadmap-node roadmap-drop-target ${achievement.achieved ? 'completed' : 'locked'} ${index === roadmapSelectedIndex ? 'selected' : ''}"
+                                data-roadmap-target="${index}"
+                                onclick="selectRoadmapAchievement(${index})"
+                                ondragover="handleRoadmapBubbleDragOver(event, ${index})"
+                                ondrop="handleRoadmapBubbleDrop(event, ${index})"
+                                aria-label="${escapeHtml(achievement.title)}"
+                            >
+                                <span class="roadmap-node-icon">${achievement.achieved ? '✓' : achievement.icon}</span>
+                                ${index === roadmapSelectedIndex ? getRoadmapAvatarMarkup() : ''}
+                            </button>
+                        </div>
+                    `).join('')}
+                    <div class="roadmap-start-badge" aria-hidden="true">🙂</div>
+                </div>
             `;
 
             updateRoadmapAvatarDisplay();
+            syncRoadmapDragStyles();
 
             if (roadmapSelectedIndex === 'finish') {
                 roadmapDetailCard.innerHTML = `
@@ -1632,11 +1807,15 @@
 
         function selectRoadmapAchievement(index) {
             roadmapSelectedIndex = index;
+            roadmapIsDragging = false;
+            roadmapDragHoverTarget = '';
             renderRoadmap();
         }
 
         function selectRoadmapFinish() {
             roadmapSelectedIndex = 'finish';
+            roadmapIsDragging = false;
+            roadmapDragHoverTarget = '';
             renderRoadmap();
         }
 
@@ -1667,6 +1846,9 @@
                 const finishChallenge = getRoadmapFinishChallenge(roadmapSnapshot, getRoadmapAchievements(roadmapSnapshot));
                 if (finishChallenge.achieved && !finishChallenge.rewardClaimed) {
                     await claimRoadmapAPlusReward();
+                }
+                if (forceRefresh || !roadmapLoadedOnce) {
+                    roadmapSelectedIndex = null;
                 }
                 roadmapLoadedOnce = true;
                 renderRoadmap();
@@ -2158,6 +2340,7 @@
                 refreshCurrentPoints();
                 startUsageAnalyticsTracking();
             }
+            loadStudentLeaderboard();
             
             const avatarContainer = document.getElementById('avatarContainer');
             if (avatarContainer) {
