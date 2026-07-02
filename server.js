@@ -1125,6 +1125,83 @@ app.get('/leaderboard/students', async (_req, res) => {
     }
 });
 
+app.post('/account/name', async (req, res) => {
+    try {
+        const email = String(req.body.email || '').trim().toLowerCase();
+        const newName = String(req.body.new_name || '').trim();
+
+        if (!email || !newName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and new name are required'
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        user.name = newName;
+        await user.save();
+
+        res.json({
+            success: true,
+            name: user.name
+        });
+    } catch (error) {
+        console.error('Update account name error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update account name'
+        });
+    }
+});
+
+app.post('/account/delete', async (req, res) => {
+    try {
+        const email = String(req.body.email || '').trim().toLowerCase();
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        await Promise.all([
+            User.deleteOne({ email }),
+            Offer.deleteMany({
+                $or: [
+                    { receiver_email: email },
+                    { sent_by: user.regd_no }
+                ]
+            }),
+            Notification.deleteMany({ target_email: email })
+        ]);
+
+        res.json({
+            success: true
+        });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete account'
+        });
+    }
+});
+
 app.get('/get-points-history/:email', async (req, res) => {
     try {
         const { email } = req.params;
@@ -1793,16 +1870,25 @@ app.get('/notifications/list/:email', async (req, res) => {
     try {
         const email = String(req.params.email || '').trim();
         const since = req.query.since ? new Date(String(req.query.since)) : null;
+        const user = await User.findOne({ email }).select('createdAt -_id').lean();
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
         const filter = {
             $or: [
                 { target_email: email },
-                { target_emails: email },
-                { target_email: null }
-            ]
+                { target_emails: email }
+            ],
+            createdAt: { $gte: user.createdAt || new Date(0) }
         };
 
         if (since && !Number.isNaN(since.getTime())) {
-            filter.createdAt = { $gt: since };
+            filter.createdAt = {
+                $gte: user.createdAt || new Date(0),
+                $gt: since
+            };
         }
 
         const notifications = await Notification.find(filter)

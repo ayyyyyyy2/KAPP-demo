@@ -72,6 +72,10 @@
                         <div class="logout-button-row">
                             <button class="logout-btn" onclick="logout()">Logout</button>
                         </div>
+
+                        <div class="settings-button-row">
+                            <button class="settings-btn settings-emoji-btn" aria-label="Settings" onclick="openSettingsModal()">⚙️</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -84,6 +88,43 @@
         </div>
     </div>
     
+    <div id="settingsModal" class="modal">
+        <div class="modal-content liquid-glass settings-modal-content">
+            <span class="close" onclick="closeSettingsModal()">&times;</span>
+            <h2>Settings</h2>
+            <div class="settings-menu-options">
+                <button class="settings-option-btn" onclick="openAvatarPersonalizationFromSettings()">Avatar Personalization</button>
+                <button class="settings-option-btn" onclick="openNameChangeModal()">Name Change</button>
+                <button class="settings-option-btn settings-danger-btn" onclick="openDeleteAccountModal()">Deletion of Account</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="nameChangeModal" class="modal">
+        <div class="modal-content liquid-glass settings-modal-content">
+            <span class="close" onclick="closeNameChangeModal()">&times;</span>
+            <h2>Change Name</h2>
+            <div class="form-group">
+                <label for="newDisplayName">New Name</label>
+                <input type="text" id="newDisplayName" maxlength="40" placeholder="Enter your new display name">
+            </div>
+            <button class="save-btn" onclick="saveDisplayName()">Save Name</button>
+        </div>
+    </div>
+
+    <div id="deleteAccountModal" class="modal">
+        <div class="modal-content liquid-glass settings-modal-content">
+            <span class="close" onclick="closeDeleteAccountModal()">&times;</span>
+            <h2>Delete Account</h2>
+            <p class="settings-modal-description">This permanently removes your account. Type <strong>DELETE</strong> to confirm.</p>
+            <div class="form-group">
+                <label for="deleteAccountConfirmInput">Confirmation</label>
+                <input type="text" id="deleteAccountConfirmInput" placeholder="Type DELETE">
+            </div>
+            <button class="save-btn settings-delete-confirm-btn" onclick="deleteCurrentAccount()">Delete Account</button>
+        </div>
+    </div>
+
     <!-- Avatar Customization Modal -->
     <div id="avatarModal" class="modal">
         <div class="modal-content liquid-glass">
@@ -440,6 +481,111 @@
             document.getElementById('avatarModal').style.display = 'none';
         }
 
+        function openSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function openAvatarPersonalizationFromSettings() {
+            closeSettingsModal();
+            openAvatarModal();
+        }
+
+        function openNameChangeModal() {
+            closeSettingsModal();
+            const nameInput = document.getElementById('newDisplayName');
+            if (nameInput) {
+                nameInput.value = document.getElementById('welcomeUserName').textContent.trim();
+            }
+            document.getElementById('nameChangeModal').style.display = 'block';
+        }
+
+        function closeNameChangeModal() {
+            document.getElementById('nameChangeModal').style.display = 'none';
+        }
+
+        function openDeleteAccountModal() {
+            closeSettingsModal();
+            const confirmInput = document.getElementById('deleteAccountConfirmInput');
+            if (confirmInput) {
+                confirmInput.value = '';
+            }
+            document.getElementById('deleteAccountModal').style.display = 'block';
+        }
+
+        function closeDeleteAccountModal() {
+            document.getElementById('deleteAccountModal').style.display = 'none';
+        }
+
+        async function saveDisplayName() {
+            const newDisplayName = String(document.getElementById('newDisplayName').value || '').trim();
+            const userEmail = resolveCurrentUserEmail();
+
+            if (!newDisplayName) {
+                alert('Please enter a new name.');
+                return;
+            }
+
+            try {
+                const response = await fetch(buildApiUrl('/account/name'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: userEmail,
+                        new_name: newDisplayName
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to update name');
+                }
+
+                updateWelcomeUserName(result.name || newDisplayName);
+                try {
+                    const storedData = JSON.parse(sessionStorage.getItem('userData') || '{}');
+                    storedData.name = result.name || newDisplayName;
+                    sessionStorage.setItem('userData', JSON.stringify(storedData));
+                } catch (_) {}
+
+                closeNameChangeModal();
+                loadStudentLeaderboard();
+            } catch (error) {
+                alert(error.message || 'Failed to update name.');
+            }
+        }
+
+        async function deleteCurrentAccount() {
+            const confirmationValue = String(document.getElementById('deleteAccountConfirmInput').value || '').trim().toUpperCase();
+            const userEmail = resolveCurrentUserEmail();
+
+            if (confirmationValue !== 'DELETE') {
+                alert('Type DELETE to confirm account deletion.');
+                return;
+            }
+
+            try {
+                const response = await fetch(buildApiUrl('/account/delete'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: userEmail
+                    })
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to delete account');
+                }
+
+                sessionStorage.removeItem('userData');
+                window.location.href = '/';
+            } catch (error) {
+                alert(error.message || 'Failed to delete account.');
+            }
+        }
+
         function setAvatarPart(part, value) {
             currentAvatar[part] = value;
             updateAvatarDisplay();
@@ -759,6 +905,8 @@
                 return;
             }
 
+            const viewerEmail = String(resolveCurrentUserEmail() || '').trim().toLowerCase();
+
             if (!Array.isArray(users) || !users.length) {
                 leaderboardElement.innerHTML = '<div class="student-leaderboard-empty">No student scores available yet.</div>';
                 return;
@@ -768,7 +916,7 @@
                 <div class="student-leaderboard-item">
                     <div class="student-leaderboard-user">
                         <span class="student-leaderboard-rank">#${index + 1}</span>
-                        <strong class="student-leaderboard-name">${escapeHtml(user.name || user.email || 'Student')}</strong>
+                        <strong class="student-leaderboard-name">${escapeHtml(String(user.email || '').trim().toLowerCase() === viewerEmail ? 'You' : (user.name || user.email || 'Student'))}</strong>
                     </div>
                     <strong class="student-leaderboard-points">${escapeHtml(String(user.points ?? 0))} 🍌</strong>
                 </div>

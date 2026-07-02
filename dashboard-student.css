@@ -1589,6 +1589,13 @@ body {
     margin-top: 4px;
 }
 
+.settings-button-row {
+    width: min(100%, 980px);
+    display: flex;
+    justify-content: center;
+    margin-top: -10px;
+}
+
 .vendors-button-container {
     width: min(100%, 980px);
     display: flex;
@@ -1600,6 +1607,33 @@ body {
     margin-top: 0;
     justify-self: auto;
     white-space: nowrap;
+}
+
+.settings-btn {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
+    color: white;
+    font-size: 22px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(141, 110, 99, 0.28);
+}
+
+.settings-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(141, 110, 99, 0.36);
+}
+
+.settings-btn:active {
+    transform: translateY(0);
 }
 
 .vendors-btn {
@@ -1757,8 +1791,19 @@ body {
         width: 100%;
     }
 
+    .settings-button-row {
+        width: 100%;
+        margin-top: -12px;
+    }
+
     .logout-btn {
         width: 100%;
+    }
+
+    .settings-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
     }
 
     .fixed-bottom-action-layer {
@@ -2055,6 +2100,48 @@ body {
 .logout-btn:active {
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.settings-modal-content {
+    max-width: 460px;
+}
+
+.settings-menu-options {
+    display: grid;
+    gap: 12px;
+}
+
+.settings-option-btn {
+    width: 100%;
+    padding: 16px 18px;
+    border: 1px solid rgba(141, 110, 99, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    color: #5d4037;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.settings-option-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(141, 110, 99, 0.3);
+    box-shadow: 0 10px 22px rgba(141, 110, 99, 0.14);
+}
+
+.settings-danger-btn,
+.settings-delete-confirm-btn {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: #fff;
+    border-color: transparent;
+}
+
+.settings-modal-description {
+    margin: 0 0 18px;
+    text-align: center;
+    color: rgba(93, 64, 55, 0.82);
+    line-height: 1.6;
 }
 
 @keyframes fadeInUp {
