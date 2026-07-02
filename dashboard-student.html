@@ -32,7 +32,7 @@
 
         <div class="scrollable-content-layer">
             <div class="welcome-container">
-                <div class="welcome-fixed-header">
+                <div class="welcome-content welcome-section-parent">
                     <h1 class="welcome-title">Welcome <span id="welcomeUserName">Student</span></h1>
                     <div class="user-avatar" id="avatarContainer">
                         <div class="avatar-container student-avatar" id="mainAvatar">
@@ -42,40 +42,36 @@
                             <div class="backpack" id="avatarHat">🎒</div>
                         </div>
                     </div>
-                </div>
 
-                <div class="welcome-scroll-parent">
-                    <div class="welcome-content welcome-section-parent">
-                        <button type="button" class="personal-items-arrow" onclick="openPersonalItemsTab()">
-                            <span>👜</span>
-                        </button>
+                    <button type="button" class="personal-items-arrow" onclick="openPersonalItemsTab()">
+                        <span>👜</span>
+                    </button>
 
-                        <section class="student-leaderboard-card" aria-labelledby="studentLeaderboardTitle">
-                            <div class="student-leaderboard-header">
-                                <div>
-                                    <h2 id="studentLeaderboardTitle" class="student-leaderboard-title">Top Students</h2>
-                                    <p class="student-leaderboard-subtitle">Highest points in the system</p>
-                                </div>
-                                <span class="student-leaderboard-badge">Top 3</span>
+                    <section class="student-leaderboard-card" aria-labelledby="studentLeaderboardTitle">
+                        <div class="student-leaderboard-header">
+                            <div>
+                                <h2 id="studentLeaderboardTitle" class="student-leaderboard-title">Top Students</h2>
+                                <p class="student-leaderboard-subtitle">Highest points in the system</p>
                             </div>
-                            <div id="studentLeaderboard" class="student-leaderboard-list">
-                                <div class="student-leaderboard-empty">Loading leaderboard...</div>
-                            </div>
-                        </section>
-
-                        <div class="action-buttons action-buttons-parent">
-                            <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
-                            <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
-                            <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
+                            <span class="student-leaderboard-badge">Top 3</span>
                         </div>
-
-                        <div class="logout-button-row">
-                            <button class="logout-btn" onclick="logout()">Logout</button>
+                        <div id="studentLeaderboard" class="student-leaderboard-list">
+                            <div class="student-leaderboard-empty">Loading leaderboard...</div>
                         </div>
+                    </section>
 
-                        <div class="settings-button-row">
-                            <button class="settings-btn settings-emoji-btn" aria-label="Settings" onclick="openSettingsModal()">⚙️</button>
-                        </div>
+                    <div class="action-buttons action-buttons-parent">
+                        <button class="action-btn" onclick="openYourOffers()">Claim Points</button>
+                        <button class="action-btn" onclick="openCreateOffer()">Send Points</button>
+                        <button class="action-btn" onclick="openMyRewards()">My Rewards</button>
+                    </div>
+
+                    <div class="logout-button-row">
+                        <button class="logout-btn" onclick="logout()">Logout</button>
+                    </div>
+
+                    <div class="settings-button-row">
+                        <button class="settings-btn settings-emoji-btn" aria-label="Settings" onclick="openSettingsModal()">⚙️</button>
                     </div>
                 </div>
             </div>
