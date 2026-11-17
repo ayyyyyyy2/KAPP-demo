@@ -3184,3 +3184,166 @@ input, textarea, select, [contenteditable="true"] {
     user-select: text;
     -webkit-touch-callout: default;
 }
+
+/* ---- Comic SVG avatar (shared with student dashboard, see avatar.js) ---- */
+.user-avatar {
+    position: relative;
+    z-index: 0;
+}
+
+/* Soft glow behind the avatar, kept to the avatar itself */
+.user-avatar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 213, 79, 0.55) 0%, rgba(255, 213, 79, 0.18) 55%, rgba(255, 213, 79, 0) 72%);
+    z-index: -1;
+    animation: avatarGlow 2s ease-in-out infinite alternate;
+}
+
+.avatar-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    filter: drop-shadow(0 4px 0 rgba(31, 20, 16, 0.12));
+    pointer-events: none;
+}
+
+.avatar-svg .avatar-eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: avatarBlink 4.5s infinite;
+}
+
+.avatar-svg .avatar-face,
+.avatar-svg .avatar-pupils {
+    transition: transform 0.15s ease-out;
+}
+
+@keyframes avatarBlink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+}
+
+/* ---- Main panel: same single-column layout as the admin/student panels ---- */
+.welcome-container {
+    width: min(100%, 1200px);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 32px 32px;
+    border-radius: 28px;
+    height: auto;
+    max-height: none;
+    display: block;
+    overflow: visible;
+}
+
+.welcome-content.welcome-section-parent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+    width: 100%;
+}
+
+.welcome-title {
+    margin-bottom: 0;
+    text-align: center;
+}
+
+.welcome-content .action-buttons {
+    width: 100%;
+}
+
+@media (max-width: 767px) {
+    .welcome-container {
+        height: auto;
+        max-height: none;
+        padding: 28px 18px 24px;
+        border-radius: 22px;
+    }
+
+    .welcome-content.welcome-section-parent {
+        gap: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-container {
+        height: auto;
+        max-height: none;
+        max-width: calc(100vw - 24px);
+        padding: 24px 14px 18px;
+    }
+}
+
+@media (max-width: 767px) {
+    .welcome-content .logout-button-row {
+        width: 100%;
+    }
+
+    .welcome-content .logout-btn {
+        width: 100%;
+        max-width: none;
+        padding: 14px;
+        border-radius: 12px;
+    }
+}
+
+/* ---- Main panel buttons: narrower, see-through glass ---- */
+.welcome-container .action-buttons-parent .action-btn {
+    background: rgba(26, 35, 126, 0.12);
+    color: #1a237e;
+    border: 1.5px solid rgba(26, 35, 126, 0.28);
+    box-shadow: 0 6px 18px rgba(26, 35, 126, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    text-shadow: none;
+}
+
+.welcome-container .action-buttons-parent .action-btn:hover {
+    background: rgba(26, 35, 126, 0.2);
+    border-color: rgba(26, 35, 126, 0.4);
+}
+
+.welcome-container .action-buttons-parent .action-btn:active {
+    background: rgba(26, 35, 126, 0.26);
+}
+
+.welcome-container .logout-button-row .logout-btn {
+    background: rgba(211, 47, 47, 0.1);
+    color: #c62828;
+    border: 1.5px solid rgba(211, 47, 47, 0.4);
+    box-shadow: 0 6px 18px rgba(211, 47, 47, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    text-shadow: none;
+}
+
+.welcome-container .logout-button-row .logout-btn:hover {
+    background: rgba(211, 47, 47, 0.18);
+    border-color: rgba(211, 47, 47, 0.55);
+}
+
+@media (max-width: 767px) {
+    .welcome-container .action-buttons.action-buttons-parent,
+    .welcome-container .logout-button-row {
+        width: 100%;
+        max-width: 300px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .welcome-container .action-buttons-parent .action-btn,
+    .welcome-container .logout-button-row .logout-btn {
+        width: 100%;
+    }
+}

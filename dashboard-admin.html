@@ -36,12 +36,7 @@
                     <h1 class="welcome-title">Welcome <span id="welcomeUserName">Admin</span></h1>
 
                     <div class="user-avatar" id="avatarContainer">
-                        <div class="avatar-container admin-avatar" id="mainAvatar">
-                            <div class="avatar-hair" id="avatarHair"></div>
-                            <div class="avatar-head"></div>
-                            <div class="avatar-body" id="avatarBody"></div>
-                            <div class="crown" id="avatarHat">👑</div>
-                        </div>
+                        <div class="avatar-container admin-avatar" id="mainAvatar"></div>
                     </div>
 
                     <button type="button" class="personal-items-arrow" onclick="openPersonalItemsTab()">
@@ -446,14 +441,16 @@
         </div>
     </div>
     
+    <script src="avatar.js"></script>
     <script>
         let currentUserEmail = '';
         let currentUserId = '';
         let isHistoryVisible = false;
         let analyticsLastSentAt = null;
         let analyticsFlushIntervalId = null;
+        const AVATAR_OPTIONS = { defaultShirt: '#1a237e' };
         let currentAvatar = {
-            hat: 'none',
+            hat: 'crown',
             shirt: 'default',
             hairStyle: 'none',
             hairColor: '#000000'
@@ -468,6 +465,10 @@
         avatarContainer.addEventListener('mouseup', endHold);
         avatarContainer.addEventListener('mouseleave', endHold);
         avatarContainer.addEventListener('touchend', endHold);
+        avatarContainer.addEventListener('touchcancel', endHold);
+        // Block text selection and the long-press context menu on the avatar
+        avatarContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+        avatarContainer.addEventListener('selectstart', (e) => e.preventDefault());
 
         function startHold(e) {
             holdTimer = setTimeout(() => {
@@ -494,28 +495,10 @@
         }
 
         function updateAvatarDisplay() {
-            const avatarHair = document.getElementById('avatarHair');
-            const avatarBody = document.getElementById('avatarBody');
-            const avatarHat = document.getElementById('avatarHat');
-
-            // Update Hat
-            switch(currentAvatar.hat) {
-                case 'crown': avatarHat.textContent = '👑'; avatarHat.style.display = 'block'; break;
-                case 'cap': avatarHat.textContent = '🧢'; avatarHat.style.display = 'block'; break;
-                case 'tophat': avatarHat.textContent = '🎩'; avatarHat.style.display = 'block'; break;
-                default: avatarHat.style.display = 'none';
+            const mainAvatar = document.getElementById('mainAvatar');
+            if (mainAvatar) {
+                mainAvatar.innerHTML = buildAvatarSVG(currentAvatar, 'main-avatar', AVATAR_OPTIONS);
             }
-
-            // Update Shirt
-            if (currentAvatar.shirt === 'default') {
-                avatarBody.style.background = ''; // Use CSS default
-            } else {
-                avatarBody.style.background = currentAvatar.shirt;
-            }
-
-            // Update Hair
-            avatarHair.className = 'avatar-hair ' + (currentAvatar.hairStyle !== 'none' ? 'hair-' + currentAvatar.hairStyle : '');
-            avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
             updateRoadmapAvatarDisplay();
         }
 
@@ -572,10 +555,10 @@
 
         if (userAvatarStr) {
             try {
-                currentAvatar = JSON.parse(userAvatarStr);
-                updateAvatarDisplay();
+                currentAvatar = { ...currentAvatar, ...JSON.parse(userAvatarStr) };
             } catch(e) {}
         }
+        updateAvatarDisplay();
         
         function updateWelcomeUserName(nameValue) {
             const welcomeUserName = document.getElementById('welcomeUserName');
@@ -1608,33 +1591,10 @@
         }
 
         function updateRoadmapAvatarDisplay() {
-            const avatarHair = document.getElementById('roadmapAvatarHair');
-            const avatarBody = document.getElementById('roadmapAvatarBody');
-            const avatarHat = document.getElementById('roadmapAvatarHat');
-            if (!avatarHair || !avatarBody || !avatarHat) {
-                return;
+            const roadmapAvatar = document.getElementById('roadmapAvatar');
+            if (roadmapAvatar) {
+                roadmapAvatar.innerHTML = buildAvatarSVG(currentAvatar, 'roadmap-avatar', AVATAR_OPTIONS);
             }
-
-            switch (currentAvatar.hat) {
-                case 'crown':
-                    avatarHat.textContent = '👑';
-                    avatarHat.style.display = 'block';
-                    break;
-                case 'cap':
-                    avatarHat.textContent = '🧢';
-                    avatarHat.style.display = 'block';
-                    break;
-                case 'tophat':
-                    avatarHat.textContent = '🎩';
-                    avatarHat.style.display = 'block';
-                    break;
-                default:
-                    avatarHat.style.display = 'none';
-            }
-
-            avatarBody.style.background = currentAvatar.shirt === 'default' ? '' : currentAvatar.shirt;
-            avatarHair.className = 'avatar-hair ' + (currentAvatar.hairStyle !== 'none' ? 'hair-' + currentAvatar.hairStyle : '');
-            avatarHair.style.background = currentAvatar.hairStyle !== 'none' ? currentAvatar.hairColor : 'transparent';
         }
 
         function getRoadmapSelectedLabel(selectedIndex) {
@@ -1649,12 +1609,7 @@
                     ondragstart="handleRoadmapAvatarDragStart(event)"
                     ondragend="handleRoadmapAvatarDragEnd()"
                 >
-                    <span class="avatar-container admin-avatar roadmap-avatar-container">
-                        <span class="avatar-hair" id="roadmapAvatarHair"></span>
-                        <span class="avatar-head"></span>
-                        <span class="avatar-body" id="roadmapAvatarBody"></span>
-                        <span class="hat" id="roadmapAvatarHat">👑</span>
-                    </span>
+                    <span class="avatar-container admin-avatar roadmap-avatar-container" id="roadmapAvatar"></span>
                 </span>
             `;
         }
