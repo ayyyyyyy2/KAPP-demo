@@ -242,6 +242,18 @@
             lastX = event.clientX;
             lastY = event.clientY;
         });
+
+        // iOS Safari zooms on a double tap even with touch-action: manipulation on some elements.
+        // Cancelling the second quick touchend stops that zoom; pointerup above still sees both taps.
+        let lastTouchEnd = 0;
+        article.addEventListener('touchend', (event) => {
+            if (event.target.closest('button, input, textarea, a, label, .ss-comment-form')) return;
+            const now = Date.now();
+            if (now - lastTouchEnd < 350) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
     }
 
     function showHeartBurst(article, x, y) {

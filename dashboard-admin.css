@@ -4914,3 +4914,9 @@ input, textarea, select, [contenteditable="true"] {
 .ss-comment-send:disabled {
     opacity: 0.6;
 }
+
+/* No double-tap zoom anywhere inside Student/Teacher Space */
+.student-space-tab,
+.student-space-tab * {
+    touch-action: manipulation;
+}
