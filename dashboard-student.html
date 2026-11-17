@@ -269,6 +269,48 @@
     </div>
 
     <!-- Personal Items Tab -->
+    <!-- Student Space: wall of student posts (opens by scrolling left on the main panel) -->
+    <div id="studentSpaceTab" class="student-space-tab" aria-hidden="true" role="dialog" aria-labelledby="studentSpaceTitle">
+        <div id="studentSpaceScroller" class="student-space-scroller">
+            <div class="student-space-inner">
+                <header class="student-space-header">
+                    <div>
+                        <h2 id="studentSpaceTitle" class="student-space-title">💬 Student Space</h2>
+                        <p class="student-space-subtitle">What’s happening on campus</p>
+                    </div>
+                    <div class="student-space-header-actions">
+                        <button type="button" id="studentSpaceRefresh" class="ss-icon-btn" aria-label="Refresh posts">↻</button>
+                        <button type="button" id="studentSpaceClose" class="ss-icon-btn" aria-label="Close Student Space">&times;</button>
+                    </div>
+                </header>
+
+                <form id="studentSpaceForm" class="ss-composer">
+                    <div id="studentSpaceComposerAvatar" class="ss-avatar" aria-hidden="true"></div>
+                    <div class="ss-composer-body">
+                        <label for="studentSpaceText" class="ss-visually-hidden">Write a post</label>
+                        <textarea id="studentSpaceText" class="ss-composer-text" rows="2" maxlength="1200" placeholder="What’s happening?"></textarea>
+                        <div id="studentSpacePreview" class="ss-preview" hidden>
+                            <img id="studentSpacePreviewImg" alt="Selected photo preview">
+                            <button type="button" id="studentSpaceRemoveImage" class="ss-preview-remove" aria-label="Remove photo">&times;</button>
+                        </div>
+                        <p id="studentSpaceError" class="ss-error" role="alert" hidden></p>
+                        <div class="ss-composer-actions">
+                            <label class="ss-photo-btn" title="Add a photo">
+                                <input type="file" id="studentSpaceFile" accept="image/*" hidden>
+                                <span aria-hidden="true">🖼️</span><span class="ss-photo-label">Photo</span>
+                            </label>
+                            <span id="studentSpaceCounter" class="ss-counter" aria-live="polite"></span>
+                            <button type="submit" id="studentSpacePostBtn" class="ss-post-btn" disabled>Post</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="studentSpaceFeed" class="ss-feed" aria-live="polite"></div>
+                <p id="studentSpaceMore" class="ss-more"></p>
+            </div>
+        </div>
+    </div>
+
     <div id="personalItemsTab" class="calendar-tab">
         <div class="calendar-container liquid-glass personal-items-container">
             <div class="calendar-header personal-items-header">
@@ -458,6 +500,7 @@
     <script src="avatar.js"></script>
     <script src="banana-burst.js"></script>
     <script src="offer-popup.js"></script>
+    <script src="student-space.js"></script>
     <script src="personal-items-swipe.js"></script>
     <script>
         let currentUserEmail = '';

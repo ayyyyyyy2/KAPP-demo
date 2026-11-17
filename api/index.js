@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const path = require('path');
 
@@ -1244,6 +1245,112 @@ app.get('/leaderboard/students', async (_req, res) => {
             success: false,
             message: 'Failed to load student leaderboard'
         });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Student Space: wall of student posts (MongoDB collection "student_posts")
+// ---------------------------------------------------------------------------
+const studentPostSchema = new mongoose.Schema({
+    post_id: { type: String, required: true, unique: true },
+    author_email: { type: String, required: true, index: true },
+    author_name: { type: String, default: '' },
+    author_avatar: {
+        hat: { type: String, default: 'none' },
+        shirt: { type: String, default: 'default' },
+        hairStyle: { type: String, default: 'none' },
+        hairColor: { type: String, default: '#000000' }
+    },
+    text: { type: String, default: '', maxlength: 1000 },
+    // Image is resized/compressed in the browser and stored as a data URL
+    image: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now, index: true }
+});
+const StudentPost = mongoose.models.StudentPost || mongoose.model('StudentPost', studentPostSchema, 'student_posts');
+
+const STUDENT_POST_MAX_TEXT = 1000;
+const STUDENT_POST_MAX_IMAGE_CHARS = 1.5 * 1024 * 1024; // ~1.1 MB of JPEG
+const STUDENT_POST_IMAGE_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+
+function serializeStudentPost(post, viewerEmail) {
+    return {
+        post_id: post.post_id,
+        author_name: post.author_name || 'Student',
+        author_avatar: post.author_avatar || {},
+        text: post.text || '',
+        image: post.image || '',
+        createdAt: post.createdAt,
+        is_mine: Boolean(viewerEmail) && post.author_email === viewerEmail
+    };
+}
+
+// Newest first; pass ?before=<ISO date> to load older posts
+app.get('/student-posts', async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 30);
+        const viewerEmail = String(req.query.viewer_email || '').trim().toLowerCase();
+        const filter = {};
+        const before = req.query.before ? new Date(String(req.query.before)) : null;
+        if (before && !Number.isNaN(before.getTime())) {
+            filter.createdAt = { $lt: before };
+        }
+
+        const posts = await StudentPost.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(limit + 1)
+            .lean();
+
+        res.json({
+            success: true,
+            posts: posts.slice(0, limit).map((post) => serializeStudentPost(post, viewerEmail)),
+            has_more: posts.length > limit
+        });
+    } catch (error) {
+        console.error('Get student posts error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load posts' });
+    }
+});
+
+app.post('/student-posts', async (req, res) => {
+    try {
+        const email = String(req.body.email || '').trim().toLowerCase();
+        const text = String(req.body.text || '').trim();
+        const image = String(req.body.image || '');
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Please log in again.' });
+        }
+        if (!text && !image) {
+            return res.status(400).json({ success: false, message: 'Write something or add a photo.' });
+        }
+        if (text.length > STUDENT_POST_MAX_TEXT) {
+            return res.status(400).json({ success: false, message: `Posts can have up to ${STUDENT_POST_MAX_TEXT} characters.` });
+        }
+        if (image && (!STUDENT_POST_IMAGE_PATTERN.test(image) || image.length > STUDENT_POST_MAX_IMAGE_CHARS)) {
+            return res.status(400).json({ success: false, message: 'This photo can’t be posted. Try a smaller JPG or PNG.' });
+        }
+
+        const user = await User.findOne({ email }).select('name email role avatar').lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+        if (user.role !== 'user') {
+            return res.status(403).json({ success: false, message: 'Only students can post in Student Space.' });
+        }
+
+        const post = await StudentPost.create({
+            post_id: crypto.randomUUID(),
+            author_email: user.email,
+            author_name: user.name || 'Student',
+            author_avatar: user.avatar || {},
+            text,
+            image
+        });
+
+        res.json({ success: true, post: serializeStudentPost(post.toObject(), user.email) });
+    } catch (error) {
+        console.error('Create student post error:', error);
+        res.status(500).json({ success: false, message: 'Failed to publish post' });
     }
 });
 

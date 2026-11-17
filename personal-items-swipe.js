@@ -1,5 +1,7 @@
-// Open the Personal Items panel (slides in from the right) by scrolling/swiping right,
-// and close it again by swiping back. Replaces the old 👜 button.
+// Horizontal navigation from the main panel:
+//  - scroll/swipe right  -> Personal Items (slides in from the right)
+//  - scroll/swipe left   -> Student Space (slides in from the left, student dashboard only)
+// The opposite gesture closes whichever page is open.
 (function initPersonalItemsSwipe() {
     const SWIPE_MIN = 60;          // px of horizontal finger travel
     const WHEEL_MIN = 90;          // accumulated trackpad deltaX
@@ -10,15 +12,27 @@
     const anyModalOpen = () => Array.from(document.querySelectorAll('.modal'))
         .some((m) => m.style.display === 'block' || m.style.display === 'flex');
 
-    function open() {
+    const spaceOpen = () => typeof window.isStudentSpaceOpen === 'function' && window.isStudentSpaceOpen();
+
+    // Content moves left (finger right -> left, trackpad scroll right)
+    function goRight() {
+        if (spaceOpen()) {
+            window.closeStudentSpace();
+            return;
+        }
         if (!isOpen() && !anyModalOpen() && typeof window.openPersonalItemsTab === 'function') {
             window.openPersonalItemsTab();
         }
     }
 
-    function close() {
-        if (isOpen() && typeof window.closePersonalItemsTab === 'function') {
-            window.closePersonalItemsTab();
+    // Content moves right (finger left -> right, trackpad scroll left)
+    function goLeft() {
+        if (isOpen()) {
+            if (typeof window.closePersonalItemsTab === 'function') window.closePersonalItemsTab();
+            return;
+        }
+        if (!spaceOpen() && !anyModalOpen() && typeof window.openStudentSpace === 'function') {
+            window.openStudentSpace();
         }
     }
 
@@ -43,9 +57,9 @@
         if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.5) return;
 
         if (dx < 0) {
-            open();   // finger moves right -> left: scroll to the right
+            goRight(); // finger moves right -> left
         } else {
-            close();  // finger moves left -> right: go back
+            goLeft();  // finger moves left -> right
         }
     }, { passive: true });
 
@@ -63,10 +77,10 @@
 
         if (wheelSum > WHEEL_MIN) {
             wheelSum = 0;
-            open();
+            goRight();
         } else if (wheelSum < -WHEEL_MIN) {
             wheelSum = 0;
-            close();
+            goLeft();
         }
     }, { passive: true });
 })();

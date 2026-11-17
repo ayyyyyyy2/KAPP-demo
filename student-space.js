@@ -1,0 +1,333 @@
+// Student Space: a wall of student posts (newest first) with a composer on top.
+// Opened by scrolling/swiping left on the main panel (see personal-items-swipe.js).
+(function initStudentSpace() {
+    const PAGE_SIZE = 15;
+    const MAX_TEXT = 1000;
+    const MAX_IMAGE_SIDE = 1280;
+    const MAX_IMAGE_CHARS = 1.4 * 1024 * 1024;
+
+    let posts = [];
+    let hasMore = true;
+    let loading = false;
+    let loadedOnce = false;
+    let pendingImage = '';
+    let posting = false;
+
+    const $ = (id) => document.getElementById(id);
+
+    function viewerEmail() {
+        try {
+            if (typeof resolveCurrentUserEmail === 'function') return resolveCurrentUserEmail() || '';
+        } catch (_) {}
+        try { return typeof currentUserEmail === 'string' ? currentUserEmail : ''; } catch (_) { return ''; }
+    }
+
+    function viewerAvatar() {
+        try { return typeof currentAvatar === 'object' && currentAvatar ? currentAvatar : {}; } catch (_) { return {}; }
+    }
+
+    function apiUrl(path, query) {
+        if (typeof buildApiUrl === 'function') return buildApiUrl(path, query || {});
+        const url = new URL(path, window.location.origin);
+        Object.entries(query || {}).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+        return url.toString();
+    }
+
+    function timeAgo(value) {
+        const date = new Date(value);
+        const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+        if (seconds < 60) return 'now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+        if (seconds < 7 * 86400) return `${Math.floor(seconds / 86400)}d`;
+        return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+    }
+
+    function avatarMarkup(avatar, key) {
+        if (typeof buildAvatarSVG !== 'function') return '🙂';
+        return buildAvatarSVG(avatar || {}, key, { defaultShirt: '#4caf50' });
+    }
+
+    // ---------- open / close ----------
+    function isOpen() {
+        return $('studentSpaceTab') && $('studentSpaceTab').classList.contains('open');
+    }
+
+    window.openStudentSpace = function openStudentSpace() {
+        const tab = $('studentSpaceTab');
+        if (!tab || isOpen()) return;
+        tab.classList.add('open');
+        tab.setAttribute('aria-hidden', 'false');
+        $('studentSpaceComposerAvatar').innerHTML = avatarMarkup(viewerAvatar(), 'ss-me');
+        if (!loadedOnce) {
+            refreshFeed();
+        }
+    };
+
+    window.closeStudentSpace = function closeStudentSpace() {
+        const tab = $('studentSpaceTab');
+        if (!tab) return;
+        tab.classList.remove('open');
+        tab.setAttribute('aria-hidden', 'true');
+    };
+
+    window.isStudentSpaceOpen = isOpen;
+
+    // ---------- feed ----------
+    function renderPost(post) {
+        const article = document.createElement('article');
+        article.className = 'ss-post' + (post.is_mine ? ' is-mine' : '');
+        article.dataset.postId = post.post_id;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'ss-avatar';
+        avatar.innerHTML = avatarMarkup(post.author_avatar, `ss-${post.post_id}`);
+
+        const body = document.createElement('div');
+        body.className = 'ss-post-body';
+
+        const head = document.createElement('div');
+        head.className = 'ss-post-head';
+        const name = document.createElement('strong');
+        name.className = 'ss-post-name';
+        name.textContent = post.author_name || 'Student';
+        const time = document.createElement('time');
+        time.className = 'ss-post-time';
+        time.dateTime = post.createdAt;
+        time.title = new Date(post.createdAt).toLocaleString();
+        time.textContent = `· ${timeAgo(post.createdAt)}`;
+        head.append(name);
+        if (post.is_mine) {
+            const you = document.createElement('span');
+            you.className = 'ss-post-you';
+            you.textContent = 'You';
+            head.append(you);
+        }
+        head.append(time);
+        body.append(head);
+
+        if (post.text) {
+            const text = document.createElement('p');
+            text.className = 'ss-post-text';
+            text.textContent = post.text;
+            body.append(text);
+        }
+
+        if (post.image) {
+            const img = document.createElement('img');
+            img.className = 'ss-post-image';
+            img.src = post.image;
+            img.alt = post.text ? `Photo: ${post.text.slice(0, 80)}` : `Photo shared by ${post.author_name || 'a student'}`;
+            img.loading = 'lazy';
+            body.append(img);
+        }
+
+        article.append(avatar, body);
+        return article;
+    }
+
+    function renderFeed() {
+        const list = $('studentSpaceFeed');
+        list.innerHTML = '';
+        if (!posts.length && !loading) {
+            list.innerHTML = '<div class="ss-empty">No posts yet. Be the first to share something! ✨</div>';
+        }
+        posts.forEach((post) => list.append(renderPost(post)));
+        $('studentSpaceMore').textContent = loading ? 'Loading…' : (hasMore && posts.length ? '' : (posts.length ? 'You’re all caught up 🎉' : ''));
+    }
+
+    async function loadPosts({ reset = false } = {}) {
+        if (loading) return;
+        if (!reset && !hasMore) return;
+        loading = true;
+        if (reset) {
+            posts = [];
+            hasMore = true;
+        }
+        renderFeed();
+        try {
+            const query = { limit: PAGE_SIZE, viewer_email: viewerEmail() };
+            if (!reset && posts.length) query.before = posts[posts.length - 1].createdAt;
+            const response = await fetch(apiUrl('/student-posts', query));
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed to load posts');
+            posts = posts.concat(result.posts || []);
+            hasMore = Boolean(result.has_more);
+            loadedOnce = true;
+        } catch (error) {
+            $('studentSpaceFeed').innerHTML = `<div class="ss-empty">Couldn’t load posts right now.</div>`;
+            loading = false;
+            $('studentSpaceMore').textContent = '';
+            return;
+        }
+        loading = false;
+        renderFeed();
+    }
+
+    function refreshFeed() {
+        return loadPosts({ reset: true });
+    }
+
+    window.refreshStudentSpace = refreshFeed;
+
+    // ---------- composer ----------
+    function updateComposerState() {
+        const text = $('studentSpaceText').value;
+        const left = MAX_TEXT - text.length;
+        const counter = $('studentSpaceCounter');
+        counter.textContent = left <= 100 ? String(left) : '';
+        counter.classList.toggle('is-over', left < 0);
+        $('studentSpacePostBtn').disabled = posting || left < 0 || (!text.trim() && !pendingImage);
+    }
+
+    function autoGrow() {
+        const area = $('studentSpaceText');
+        area.style.height = 'auto';
+        area.style.height = `${Math.min(area.scrollHeight, 220)}px`;
+    }
+
+    function showError(message) {
+        const el = $('studentSpaceError');
+        el.textContent = message || '';
+        el.hidden = !message;
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Unreadable image')); };
+            img.src = url;
+        });
+    }
+
+    // Resize + compress in the browser so posts stay small in MongoDB
+    async function compressImage(file) {
+        const img = await loadImage(file);
+        const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let quality = 0.85;
+        let data = canvas.toDataURL('image/jpeg', quality);
+        while (data.length > MAX_IMAGE_CHARS && quality > 0.4) {
+            quality -= 0.1;
+            data = canvas.toDataURL('image/jpeg', quality);
+        }
+        if (data.length > MAX_IMAGE_CHARS) throw new Error('Photo is too large');
+        return data;
+    }
+
+    async function handleFile(event) {
+        const file = event.target.files && event.target.files[0];
+        event.target.value = '';
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            showError('Please choose an image file.');
+            return;
+        }
+        showError('');
+        try {
+            pendingImage = await compressImage(file);
+            $('studentSpacePreviewImg').src = pendingImage;
+            $('studentSpacePreview').hidden = false;
+        } catch (_) {
+            pendingImage = '';
+            $('studentSpacePreview').hidden = true;
+            showError('This photo can’t be used. Try another one.');
+        }
+        updateComposerState();
+    }
+
+    function removeImage() {
+        pendingImage = '';
+        $('studentSpacePreview').hidden = true;
+        $('studentSpacePreviewImg').removeAttribute('src');
+        updateComposerState();
+    }
+
+    async function submitPost(event) {
+        event.preventDefault();
+        if (posting) return;
+        const text = $('studentSpaceText').value.trim();
+        if (!text && !pendingImage) return;
+        const email = viewerEmail();
+        if (!email) {
+            showError('Please log in again to post.');
+            return;
+        }
+
+        posting = true;
+        showError('');
+        const button = $('studentSpacePostBtn');
+        button.textContent = 'Posting…';
+        updateComposerState();
+
+        try {
+            const response = await fetch(apiUrl('/student-posts'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, text, image: pendingImage })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed to publish post');
+
+            $('studentSpaceText').value = '';
+            autoGrow();
+            removeImage();
+            posts.unshift(result.post);
+            renderFeed();
+            const first = $('studentSpaceFeed').firstElementChild;
+            if (first && first.animate) {
+                first.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+            }
+        } catch (error) {
+            showError(error.message || 'Failed to publish post.');
+        } finally {
+            posting = false;
+            button.textContent = 'Post';
+            updateComposerState();
+        }
+    }
+
+    function init() {
+        const tab = $('studentSpaceTab');
+        if (!tab) return;
+
+        $('studentSpaceForm').addEventListener('submit', submitPost);
+        $('studentSpaceText').addEventListener('input', () => { autoGrow(); updateComposerState(); });
+        $('studentSpaceFile').addEventListener('change', handleFile);
+        $('studentSpaceRemoveImage').addEventListener('click', removeImage);
+        $('studentSpaceRefresh').addEventListener('click', refreshFeed);
+        $('studentSpaceClose').addEventListener('click', window.closeStudentSpace);
+
+        // Infinite scroll for older posts
+        const scroller = $('studentSpaceScroller');
+        scroller.addEventListener('scroll', () => {
+            if (scroller.scrollTop + scroller.clientHeight > scroller.scrollHeight - 400) {
+                loadPosts();
+            }
+        }, { passive: true });
+
+        // Keep relative times fresh
+        setInterval(() => {
+            if (!isOpen()) return;
+            document.querySelectorAll('#studentSpaceFeed .ss-post-time').forEach((el) => {
+                el.textContent = `· ${timeAgo(el.dateTime)}`;
+            });
+        }, 60000);
+
+        updateComposerState();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
