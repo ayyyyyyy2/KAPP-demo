@@ -436,3 +436,18 @@ button[type="submit"]:active {
         font-size: 15px;
     }
 }
+
+/* App-wide: disable text selection and the iOS long-press callout */
+html, body, body * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep form fields usable */
+input, textarea, select, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}

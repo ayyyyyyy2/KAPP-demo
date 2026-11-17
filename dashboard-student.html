@@ -2266,6 +2266,15 @@
             loadRoadmap(true);
         }
 
+        // Block scrolling (touch + mouse wheel) on the Snake board and Game Over screen
+        (function lockSnakeBoardScroll() {
+            const board = document.querySelector('.snake-board');
+            if (!board) return;
+            const block = (event) => event.preventDefault();
+            board.addEventListener('touchmove', block, { passive: false });
+            board.addEventListener('wheel', block, { passive: false });
+        })();
+
         function openSnakeGame() {
             activePersonalItem = 'snake';
             updatePersonalItemsHeaderVisibility(false);

@@ -1860,6 +1860,15 @@ body {
     position: relative;
     width: min(100%, 360px);
     margin: 0 auto 18px;
+    /* No page scrolling / zooming while touching the board or Game Over */
+    touch-action: none;
+    overscroll-behavior: contain;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.snake-board * {
+    touch-action: none;
 }
 
 .snake-game-over-overlay {
@@ -3323,4 +3332,19 @@ body {
 .avatar-svg .avatar-face,
 .avatar-svg .avatar-pupils {
     transition: transform 0.15s ease-out;
+}
+
+/* App-wide: disable text selection and the iOS long-press callout */
+html, body, body * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep form fields usable */
+input, textarea, select, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
 }
