@@ -442,6 +442,7 @@
     
     <script src="avatar.js"></script>
     <script src="banana-burst.js"></script>
+    <script src="offer-popup.js"></script>
     <script src="personal-items-swipe.js"></script>
     <script>
         let currentUserEmail = '';
@@ -1126,7 +1127,7 @@
             display.textContent = val;
         }
         
-        async function claimOffer(offerId) {
+        async function claimOffer(offerId, options = {}) {
             try {
                 const response = await fetch('/claim-offer', {
                     method: 'POST',
@@ -1142,7 +1143,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(result.message);
+                    if (!options.silent) alert(result.message);
                     updateDisplayedPoints(result.new_points);
                     refreshCurrentPoints();
                     closeOfferClaimModal();
@@ -1150,11 +1151,14 @@
                     if (isHistoryVisible) {
                         loadPointsHistory(); // Refresh history if visible
                     }
+                    return true;
                 } else {
                     alert(result.message);
+                    return false;
                 }
             } catch (error) {
                 alert('Failed to claim offer. Please try again.');
+                return false;
             }
         }
         
