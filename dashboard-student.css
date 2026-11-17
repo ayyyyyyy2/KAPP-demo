@@ -65,6 +65,8 @@ body {
     justify-content: center;
     margin-bottom: 20px;
     cursor: pointer;
+    position: relative;
+    z-index: 0;
 }
 
 .avatar-container {
@@ -287,12 +289,15 @@ body {
 .user-avatar::before {
     content: '';
     position: absolute;
-    top: -5px;
-    left: -5px;
-    right: -5px;
-    bottom: -5px;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    background: linear-gradient(45deg, #8d6e63, #a1887f, #8d6e63);
+    background: radial-gradient(circle, rgba(255, 213, 79, 0.55) 0%, rgba(255, 213, 79, 0.18) 55%, rgba(255, 213, 79, 0) 72%);
     z-index: -1;
     animation: avatarGlow 2s ease-in-out infinite alternate;
 }
@@ -1283,10 +1288,8 @@ body {
         min-height: 500px;
     }
 
-    .snake-card canvas,
-    #snakeCanvas {
+    .snake-board {
         width: min(100%, 300px);
-        height: auto;
     }
 
     .modal-content,
@@ -1838,17 +1841,26 @@ body {
     text-align: center;
 }
 
+.snake-board {
+    position: relative;
+    width: min(100%, 360px);
+    margin: 0 auto 18px;
+}
+
 .snake-game-over-overlay {
-    position: fixed;
+    position: absolute;
     inset: 0;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    background: rgba(59, 41, 34, 0.28);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    z-index: 2100;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 2px solid rgba(141, 110, 99, 0.18);
+    border-radius: 18px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 16px 36px rgba(93, 64, 55, 0.18);
+    z-index: 5;
 }
 
 .snake-game-over-overlay.is-visible {
@@ -1856,15 +1868,15 @@ body {
 }
 
 .snake-game-over-card {
-    width: min(100%, 320px);
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(141, 110, 99, 0.18);
-    border-radius: 24px;
-    padding: 26px 22px;
-    box-shadow: 0 22px 48px rgba(93, 64, 55, 0.2);
+    width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+}
+
+.snake-game-over-card .snake-btn {
+    align-self: center;
 }
 
 .snake-game-over-title {
@@ -1884,10 +1896,10 @@ body {
 }
 
 .snake-canvas {
-    width: min(100%, 360px);
+    width: 100%;
     height: auto;
     display: block;
-    margin: 0 auto 18px;
+    margin: 0;
     background: rgba(141, 110, 99, 0.1);
     border: 2px solid rgba(141, 110, 99, 0.18);
     border-radius: 18px;
@@ -3248,4 +3260,52 @@ body {
         flex-direction: row;
         justify-content: center;
     }
+}
+
+/* KAPP First Class Modal Styles */
+.kapp-first-class-modal-content {
+    max-width: 90vw !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+}
+
+.kapp-first-class-image-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    border-radius: 16px;
+}
+
+.kapp-first-class-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 16px;
+}
+
+/* SVG student avatar */
+.avatar-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    filter: drop-shadow(0 4px 0 rgba(31, 20, 16, 0.12));
+    pointer-events: none;
+}
+
+.avatar-svg .avatar-eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: avatarBlink 4.5s infinite;
+}
+
+@keyframes avatarBlink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+}
+
+.avatar-svg .avatar-face,
+.avatar-svg .avatar-pupils {
+    transition: transform 0.15s ease-out;
 }

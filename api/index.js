@@ -232,6 +232,81 @@ const counterSchema = new mongoose.Schema({
 
 const Counter = mongoose.model('Counter', counterSchema, 'counters');
 
+async function getCurrentMaxNumericId(Model, idField, session = null) {
+    const pipeline = [
+        {
+            $project: {
+                numericId: {
+                    $convert: {
+                        input: `$${idField}`,
+                        to: 'int',
+                        onError: null,
+                        onNull: null
+                    }
+                }
+            }
+        },
+        { $match: { numericId: { $ne: null } } },
+        { $sort: { numericId: -1 } },
+        { $limit: 1 }
+    ];
+
+    const query = Model.aggregate(pipeline);
+    if (session) {
+        query.session(session);
+    }
+
+    const [maxDoc] = await query;
+    return maxDoc?.numericId || 0;
+}
+
+async function getNextSequentialId({ counterKey, model, idField, session = null, maxRetries = 5 }) {
+    const updateOptions = { new: true, upsert: true, setDefaultsOnInsert: true };
+    if (session) {
+        updateOptions.session = session;
+    }
+
+    const plainOptions = { new: true };
+    if (session) {
+        plainOptions.session = session;
+    }
+
+    for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+        const currentMax = await getCurrentMaxNumericId(model, idField, session);
+
+        await Counter.findOneAndUpdate(
+            { _id: counterKey },
+            { $setOnInsert: { seq: currentMax } },
+            updateOptions
+        );
+
+        await Counter.findOneAndUpdate(
+            { _id: counterKey },
+            { $max: { seq: currentMax } },
+            plainOptions
+        );
+
+        const counter = await Counter.findOneAndUpdate(
+            { _id: counterKey },
+            { $inc: { seq: 1 } },
+            plainOptions
+        );
+        const nextId = String(counter.seq);
+
+        const existingQuery = model.findOne({ [idField]: nextId }).select('_id').lean();
+        if (session) {
+            existingQuery.session(session);
+        }
+
+        const existing = await existingQuery;
+        if (!existing) {
+            return nextId;
+        }
+    }
+
+    throw new Error(`Unable to generate a unique ${idField}`);
+}
+
 function getAnalyticsDateKey(date = new Date()) {
     return date.toISOString().slice(0, 10);
 }
@@ -862,28 +937,12 @@ app.post('/create-offer', async (req, res) => {
                     }
                 }
 
-                let counter = await Counter.findOne({ _id: 'offerCreation' }).session(session);
-                if (!counter) {
-                    const maxOffer = await Offer.aggregate([
-                        { $addFields: { offer_id_num: { $toInt: '$offer_id' } } },
-                        { $sort: { offer_id_num: -1 } },
-                        { $limit: 1 },
-                        { $project: { offer_id_num: 1 } }
-                    ]).session(session);
-                    const currentMax = (maxOffer[0] && maxOffer[0].offer_id_num) ? maxOffer[0].offer_id_num : 0;
-                    counter = await Counter.findOneAndUpdate(
-                        { _id: 'offerCreation' },
-                        { $setOnInsert: { seq: currentMax } },
-                        { upsert: true, new: true, session }
-                    );
-                }
-
-                counter = await Counter.findOneAndUpdate(
-                    { _id: 'offerCreation' },
-                    { $inc: { seq: 1 } },
-                    { new: true, session }
-                );
-                const nextOfferId = String(counter.seq);
+                const nextOfferId = await getNextSequentialId({
+                    counterKey: 'offerCreation',
+                    model: Offer,
+                    idField: 'offer_id',
+                    session
+                });
 
                 if (sender.role !== 'admin') {
                     sender.points = (sender.points || 0) - amount;
