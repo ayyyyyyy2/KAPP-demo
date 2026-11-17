@@ -1563,6 +1563,7 @@
 
         function showPersonalItemsMenu() {
             activePersonalItem = 'menu';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(true);
             document.getElementById('personalItemsMenu').classList.remove('hidden');
@@ -1576,6 +1577,7 @@
 
         function openCalendarItem() {
             activePersonalItem = 'calendar';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
@@ -2121,6 +2123,7 @@
 
         function openAnalyticsItem() {
             activePersonalItem = 'analytics';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
@@ -2135,6 +2138,7 @@
 
         function openRoadmapItem() {
             activePersonalItem = 'roadmap';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
@@ -2158,6 +2162,7 @@
 
         function openRewardsItem() {
             activePersonalItem = 'rewards';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
@@ -2171,8 +2176,20 @@
             loadClaimedRewards('personalRewardsList');
         }
 
+        // No scrolling on the Snake page (touch + mouse wheel)
+        (function lockSnakePageScroll() {
+            const tab = document.getElementById('personalItemsTab');
+            if (!tab) return;
+            const block = (event) => {
+                if (tab.classList.contains('snake-mode')) event.preventDefault();
+            };
+            tab.addEventListener('touchmove', block, { passive: false });
+            tab.addEventListener('wheel', block, { passive: false });
+        })();
+
         function openSnakeGame() {
             activePersonalItem = 'snake';
+            document.getElementById('personalItemsTab').classList.toggle('snake-mode', activePersonalItem === 'snake');
             document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
@@ -2311,9 +2328,14 @@
             }
         }
 
+        // Snake speeds up with every point: 160ms per step at the start, 4% faster per point, never below 65ms
+        function getSnakeStepDelay() {
+            return Math.max(65, Math.round(160 * Math.pow(0.96, snakeScore)));
+        }
+
         function startSnakeLoop() {
             stopSnakeLoop();
-            snakeLoop = window.setInterval(stepSnakeGame, 160);
+            snakeLoop = window.setInterval(stepSnakeGame, getSnakeStepDelay());
         }
 
         function setSnakeDirection(nextX, nextY) {
@@ -2374,6 +2396,7 @@
                     localStorage.setItem(getSnakeBestKey(), String(snakeBestScore));
                 }
                 placeSnakeFood();
+                startSnakeLoop(); // apply the faster speed
                 if (ateRareBanana) {
                     updateSnakeStatus('Rare banana found! +1 banana point.');
                     claimSnakeBananaReward();

@@ -4355,3 +4355,25 @@ input, textarea, select, [contenteditable="true"] {
 #personalItemsTab .snake-stats {
     color: #1a237e;
 }
+
+/* ---- Snake page: no scrolling, board always fits on screen ---- */
+#personalItemsTab.snake-mode .personal-items-container {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+    touch-action: none;
+}
+
+#personalItemsTab.snake-mode .snake-board,
+#personalItemsTab.snake-mode .snake-card > canvas {
+    width: min(100%, 360px, calc(100dvh - 340px));
+    max-width: none;
+    height: auto;
+}
+
+#personalItemsTab .snake-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 8px 0 0;
+}
