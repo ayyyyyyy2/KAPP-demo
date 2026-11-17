@@ -465,6 +465,10 @@
         avatarContainer.addEventListener('mouseup', endHold);
         avatarContainer.addEventListener('mouseleave', endHold);
         avatarContainer.addEventListener('touchend', endHold);
+        avatarContainer.addEventListener('touchcancel', endHold);
+        // Block text selection and the long-press context menu on the avatar
+        avatarContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+        avatarContainer.addEventListener('selectstart', (e) => e.preventDefault());
 
         function startHold(e) {
             holdTimer = setTimeout(() => {

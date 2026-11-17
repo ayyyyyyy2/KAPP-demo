@@ -67,6 +67,20 @@ body {
     cursor: pointer;
     position: relative;
     z-index: 0;
+    /* Long-press opens the editor: no text selection / iOS callout */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.user-avatar *,
+.welcome-title,
+.roadmap-avatar-shell,
+.roadmap-avatar-shell * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .avatar-container {
@@ -1834,10 +1848,11 @@ body {
 }
 
 .snake-card {
-    background: rgba(255, 255, 255, 0.62);
-    border: 1px solid rgba(141, 110, 99, 0.12);
-    border-radius: 22px;
-    padding: 28px 24px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 8px 0 0;
     text-align: center;
 }
 
