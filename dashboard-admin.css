@@ -3788,3 +3788,15 @@ input, textarea, select, [contenteditable="true"] {
         width: 100%;
     }
 }
+
+/* ---- Main avatar at 2x size (roadmap avatar unchanged) ---- */
+#mainAvatar.avatar-container {
+    width: min(240px, 62vw);
+    height: auto;
+    aspect-ratio: 120 / 140;
+}
+
+.user-avatar::before {
+    width: min(280px, 72vw);
+    height: min(280px, 72vw);
+}
