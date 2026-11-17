@@ -4152,3 +4152,357 @@ input, textarea, select, [contenteditable="true"] {
     border-radius: 0;
     padding: 8px 0 0;
 }
+
+/* =====================================================================
+   Student Space (student-space.js): full-screen wall, slides in from the left
+   ===================================================================== */
+.student-space-tab {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background:
+        radial-gradient(circle at 85% 8%, rgba(255, 213, 79, 0.45) 0%, rgba(255, 213, 79, 0) 38%),
+        radial-gradient(circle at 8% 35%, rgba(121, 134, 203, 0.45) 0%, rgba(121, 134, 203, 0) 42%),
+        radial-gradient(circle at 80% 95%, rgba(129, 199, 132, 0.3) 0%, rgba(129, 199, 132, 0) 40%),
+        linear-gradient(180deg, #eef0fb 0%, #e3e6f7 100%);
+    visibility: hidden;
+}
+
+.student-space-tab.open {
+    transform: translateX(0);
+    visibility: visible;
+}
+
+.student-space-scroller {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: calc(env(safe-area-inset-top) + 92px) 14px calc(env(safe-area-inset-bottom) + 112px);
+}
+
+.student-space-inner {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.student-space-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.student-space-title {
+    margin: 0;
+    color: #1a237e;
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.student-space-subtitle {
+    margin: 2px 0 0;
+    color: rgba(26, 35, 126, 0.6);
+    font-size: 13px;
+}
+
+.student-space-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ss-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 6px 14px rgba(26, 35, 126, 0.12);
+    color: #1a237e;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* Glass cards shared by composer and posts */
+.ss-composer,
+.ss-post,
+.ss-empty {
+    border-radius: 24px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.46) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 1), 0 10px 24px rgba(26, 35, 126, 0.09);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+.ss-avatar {
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 35%, #fff8e1 0%, #ffe082 100%);
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 10px rgba(26, 35, 126, 0.12);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+/* Show the head and shoulders of the comic avatar */
+.ss-avatar .avatar-svg {
+    width: 150%;
+    height: auto;
+    margin-top: -2px;
+    filter: none;
+    flex-shrink: 0;
+}
+
+/* Composer */
+.ss-composer {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+}
+
+.ss-composer-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ss-composer-text {
+    width: 100%;
+    min-height: 48px;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #1a237e;
+    font: inherit;
+    font-size: 17px;
+    line-height: 1.4;
+    padding: 10px 2px 4px;
+}
+
+.ss-composer-text::placeholder {
+    color: rgba(26, 35, 126, 0.45);
+}
+
+.ss-preview {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+}
+
+.ss-preview img {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+}
+
+.ss-preview-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(13, 20, 82, 0.65);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ss-error {
+    margin: 0;
+    color: #c62828;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.ss-composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid rgba(26, 35, 126, 0.08);
+    padding-top: 10px;
+}
+
+.ss-photo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    color: #1a237e;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.ss-counter {
+    margin-left: auto;
+    color: rgba(26, 35, 126, 0.55);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.ss-counter.is-over {
+    color: #c62828;
+}
+
+.ss-post-btn {
+    margin-left: auto;
+    padding: 9px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, #ffe082 0%, #ffb300 100%);
+    box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.8), 0 8px 18px rgba(255, 160, 0, 0.3);
+    color: #1a237e;
+    font-weight: 900;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ss-counter:not(:empty) + .ss-post-btn {
+    margin-left: 0;
+}
+
+.ss-post-btn:disabled {
+    opacity: 0.5;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* Feed */
+.ss-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ss-post {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+}
+
+.ss-post.is-mine {
+    border-color: rgba(255, 213, 79, 0.95);
+}
+
+.ss-post-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.ss-post-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.ss-post-name {
+    color: #1a237e;
+    font-size: 15px;
+}
+
+.ss-post-you {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(255, 213, 79, 0.45);
+    color: #1a237e;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.ss-post-time {
+    color: rgba(26, 35, 126, 0.5);
+    font-size: 13px;
+}
+
+.ss-post-text {
+    margin: 0 0 8px;
+    color: #1a1f4d;
+    font-size: 15px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ss-post-image {
+    display: block;
+    width: 100%;
+    max-height: 520px;
+    object-fit: cover;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    margin-top: 4px;
+}
+
+.ss-empty {
+    padding: 22px 16px;
+    text-align: center;
+    color: rgba(26, 35, 126, 0.7);
+}
+
+.ss-more {
+    margin: 4px 0 0;
+    text-align: center;
+    color: rgba(26, 35, 126, 0.55);
+    font-size: 13px;
+    font-weight: 700;
+    min-height: 18px;
+}
+
+.ss-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.ss-post-role {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+}
+
+.ss-post-role.is-teacher {
+    background: linear-gradient(180deg, #ffb74d 0%, #f57c00 100%);
+}
+
+.ss-post-role.is-admin {
+    background: linear-gradient(180deg, #5c6bc0 0%, #1a237e 100%);
+}
+
+/* Teacher Space: warmer tint than Student Space */
+.student-space-tab.teacher-space {
+    background:
+        radial-gradient(circle at 85% 8%, rgba(255, 183, 77, 0.5) 0%, rgba(255, 183, 77, 0) 38%),
+        radial-gradient(circle at 8% 35%, rgba(121, 134, 203, 0.4) 0%, rgba(121, 134, 203, 0) 42%),
+        radial-gradient(circle at 80% 95%, rgba(239, 154, 154, 0.3) 0%, rgba(239, 154, 154, 0) 40%),
+        linear-gradient(180deg, #f6f1ea 0%, #ece6f5 100%);
+}

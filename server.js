@@ -1192,12 +1192,15 @@ app.get('/leaderboard/students', async (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Student Space: wall of student posts (MongoDB collection "student_posts")
+// Post walls (Student Space / Teacher Space)
+//  - Student Space: MongoDB collection "student_posts" (students + admins)
+//  - Teacher Space: MongoDB collection "teacher_posts" (teachers + admins)
 // ---------------------------------------------------------------------------
-const studentPostSchema = new mongoose.Schema({
+const wallPostSchema = new mongoose.Schema({
     post_id: { type: String, required: true, unique: true },
     author_email: { type: String, required: true, index: true },
     author_name: { type: String, default: '' },
+    author_role: { type: String, default: 'user' }, // 'user' (student), 'teacher' or 'admin'
     author_avatar: {
         hat: { type: String, default: 'none' },
         shirt: { type: String, default: 'default' },
@@ -1209,16 +1212,18 @@ const studentPostSchema = new mongoose.Schema({
     image: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now, index: true }
 });
-const StudentPost = mongoose.models.StudentPost || mongoose.model('StudentPost', studentPostSchema, 'student_posts');
+const StudentPost = mongoose.models.StudentPost || mongoose.model('StudentPost', wallPostSchema, 'student_posts');
+const TeacherPost = mongoose.models.TeacherPost || mongoose.model('TeacherPost', wallPostSchema, 'teacher_posts');
 
-const STUDENT_POST_MAX_TEXT = 1000;
-const STUDENT_POST_MAX_IMAGE_CHARS = 1.5 * 1024 * 1024; // ~1.1 MB of JPEG
-const STUDENT_POST_IMAGE_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const WALL_POST_MAX_TEXT = 1000;
+const WALL_POST_MAX_IMAGE_CHARS = 1.5 * 1024 * 1024; // ~1.1 MB of JPEG
+const WALL_POST_IMAGE_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 
-function serializeStudentPost(post, viewerEmail) {
+function serializeWallPost(post, viewerEmail) {
     return {
         post_id: post.post_id,
         author_name: post.author_name || 'Student',
+        author_role: post.author_role || 'user',
         author_avatar: post.author_avatar || {},
         text: post.text || '',
         image: post.image || '',
@@ -1227,74 +1232,103 @@ function serializeStudentPost(post, viewerEmail) {
     };
 }
 
-// Newest first; pass ?before=<ISO date> to load older posts
-app.get('/student-posts', async (req, res) => {
-    try {
-        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 30);
-        const viewerEmail = String(req.query.viewer_email || '').trim().toLowerCase();
-        const filter = {};
-        const before = req.query.before ? new Date(String(req.query.before)) : null;
-        if (before && !Number.isNaN(before.getTime())) {
-            filter.createdAt = { $lt: before };
+function registerPostWall({ route, Model, name, readRoles, writeRoles }) {
+    // Newest first; pass ?before=<ISO date> to load older posts
+    app.get(route, async (req, res) => {
+        try {
+            const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 15, 1), 30);
+            const viewerEmail = String(req.query.viewer_email || '').trim().toLowerCase();
+
+            if (readRoles) {
+                const viewer = viewerEmail
+                    ? await User.findOne({ email: viewerEmail }).select('role').lean()
+                    : null;
+                if (!viewer || !readRoles.includes(viewer.role)) {
+                    return res.status(403).json({ success: false, message: `${name} is not available for your account.` });
+                }
+            }
+
+            const filter = {};
+            const before = req.query.before ? new Date(String(req.query.before)) : null;
+            if (before && !Number.isNaN(before.getTime())) {
+                filter.createdAt = { $lt: before };
+            }
+
+            const posts = await Model.find(filter)
+                .sort({ createdAt: -1 })
+                .limit(limit + 1)
+                .lean();
+
+            res.json({
+                success: true,
+                posts: posts.slice(0, limit).map((post) => serializeWallPost(post, viewerEmail)),
+                has_more: posts.length > limit
+            });
+        } catch (error) {
+            console.error(`Get ${name} posts error:`, error);
+            res.status(500).json({ success: false, message: 'Failed to load posts' });
         }
+    });
 
-        const posts = await StudentPost.find(filter)
-            .sort({ createdAt: -1 })
-            .limit(limit + 1)
-            .lean();
+    app.post(route, async (req, res) => {
+        try {
+            const email = String(req.body.email || '').trim().toLowerCase();
+            const text = String(req.body.text || '').trim();
+            const image = String(req.body.image || '');
 
-        res.json({
-            success: true,
-            posts: posts.slice(0, limit).map((post) => serializeStudentPost(post, viewerEmail)),
-            has_more: posts.length > limit
-        });
-    } catch (error) {
-        console.error('Get student posts error:', error);
-        res.status(500).json({ success: false, message: 'Failed to load posts' });
-    }
+            if (!email) {
+                return res.status(400).json({ success: false, message: 'Please log in again.' });
+            }
+            if (!text && !image) {
+                return res.status(400).json({ success: false, message: 'Write something or add a photo.' });
+            }
+            if (text.length > WALL_POST_MAX_TEXT) {
+                return res.status(400).json({ success: false, message: `Posts can have up to ${WALL_POST_MAX_TEXT} characters.` });
+            }
+            if (image && (!WALL_POST_IMAGE_PATTERN.test(image) || image.length > WALL_POST_MAX_IMAGE_CHARS)) {
+                return res.status(400).json({ success: false, message: 'This photo can’t be posted. Try a smaller JPG or PNG.' });
+            }
+
+            const user = await User.findOne({ email }).select('name email role avatar').lean();
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'User not found.' });
+            }
+            if (!writeRoles.includes(user.role)) {
+                return res.status(403).json({ success: false, message: `Your account can’t post in ${name}.` });
+            }
+
+            const post = await Model.create({
+                post_id: crypto.randomUUID(),
+                author_email: user.email,
+                author_name: user.name || 'User',
+                author_role: user.role || 'user',
+                author_avatar: user.avatar || {},
+                text,
+                image
+            });
+
+            res.json({ success: true, post: serializeWallPost(post.toObject(), user.email) });
+        } catch (error) {
+            console.error(`Create ${name} post error:`, error);
+            res.status(500).json({ success: false, message: 'Failed to publish post' });
+        }
+    });
+}
+
+registerPostWall({
+    route: '/student-posts',
+    Model: StudentPost,
+    name: 'Student Space',
+    readRoles: null, // anyone can read the student wall
+    writeRoles: ['user', 'admin']
 });
 
-app.post('/student-posts', async (req, res) => {
-    try {
-        const email = String(req.body.email || '').trim().toLowerCase();
-        const text = String(req.body.text || '').trim();
-        const image = String(req.body.image || '');
-
-        if (!email) {
-            return res.status(400).json({ success: false, message: 'Please log in again.' });
-        }
-        if (!text && !image) {
-            return res.status(400).json({ success: false, message: 'Write something or add a photo.' });
-        }
-        if (text.length > STUDENT_POST_MAX_TEXT) {
-            return res.status(400).json({ success: false, message: `Posts can have up to ${STUDENT_POST_MAX_TEXT} characters.` });
-        }
-        if (image && (!STUDENT_POST_IMAGE_PATTERN.test(image) || image.length > STUDENT_POST_MAX_IMAGE_CHARS)) {
-            return res.status(400).json({ success: false, message: 'This photo can’t be posted. Try a smaller JPG or PNG.' });
-        }
-
-        const user = await User.findOne({ email }).select('name email role avatar').lean();
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
-        }
-        if (user.role !== 'user') {
-            return res.status(403).json({ success: false, message: 'Only students can post in Student Space.' });
-        }
-
-        const post = await StudentPost.create({
-            post_id: crypto.randomUUID(),
-            author_email: user.email,
-            author_name: user.name || 'Student',
-            author_avatar: user.avatar || {},
-            text,
-            image
-        });
-
-        res.json({ success: true, post: serializeStudentPost(post.toObject(), user.email) });
-    } catch (error) {
-        console.error('Create student post error:', error);
-        res.status(500).json({ success: false, message: 'Failed to publish post' });
-    }
+registerPostWall({
+    route: '/teacher-posts',
+    Model: TeacherPost,
+    name: 'Teacher Space',
+    readRoles: ['teacher', 'admin'],
+    writeRoles: ['teacher', 'admin']
 });
 
 app.post('/account/name', async (req, res) => {

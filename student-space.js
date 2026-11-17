@@ -1,5 +1,6 @@
-// Student Space: a wall of student posts (newest first) with a composer on top.
+// Post wall page (Student Space / Teacher Space): newest posts first, composer on top.
 // Opened by scrolling/swiping left on the main panel (see personal-items-swipe.js).
+// The API route comes from data-endpoint on #studentSpaceTab (default /student-posts).
 (function initStudentSpace() {
     const PAGE_SIZE = 15;
     const MAX_TEXT = 1000;
@@ -12,8 +13,10 @@
     let loadedOnce = false;
     let pendingImage = '';
     let posting = false;
+    let feedVersion = 0; // bumped when switching between spaces, so stale responses are ignored
 
     const $ = (id) => document.getElementById(id);
+    const endpoint = () => ($('studentSpaceTab') && $('studentSpaceTab').dataset.endpoint) || '/student-posts';
 
     function viewerEmail() {
         try {
@@ -43,9 +46,16 @@
         return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
     }
 
-    function avatarMarkup(avatar, key) {
+    const ROLE_SHIRTS = { user: '#4caf50', teacher: '#ff9800', admin: '#1a237e' };
+    const ROLE_LABELS = { teacher: 'Teacher', admin: 'Admin' };
+
+    function avatarMarkup(avatar, key, role) {
         if (typeof buildAvatarSVG !== 'function') return '🙂';
-        return buildAvatarSVG(avatar || {}, key, { defaultShirt: '#4caf50' });
+        return buildAvatarSVG(avatar || {}, key, { defaultShirt: ROLE_SHIRTS[role] || ROLE_SHIRTS.user });
+    }
+
+    function viewerAvatarOptions() {
+        try { return typeof AVATAR_OPTIONS === 'object' && AVATAR_OPTIONS ? AVATAR_OPTIONS : {}; } catch (_) { return {}; }
     }
 
     // ---------- open / close ----------
@@ -58,7 +68,9 @@
         if (!tab || isOpen()) return;
         tab.classList.add('open');
         tab.setAttribute('aria-hidden', 'false');
-        $('studentSpaceComposerAvatar').innerHTML = avatarMarkup(viewerAvatar(), 'ss-me');
+        $('studentSpaceComposerAvatar').innerHTML = typeof buildAvatarSVG === 'function'
+            ? buildAvatarSVG(viewerAvatar(), 'ss-me', viewerAvatarOptions())
+            : '🙂';
         if (!loadedOnce) {
             refreshFeed();
         }
@@ -81,7 +93,7 @@
 
         const avatar = document.createElement('div');
         avatar.className = 'ss-avatar';
-        avatar.innerHTML = avatarMarkup(post.author_avatar, `ss-${post.post_id}`);
+        avatar.innerHTML = avatarMarkup(post.author_avatar, `ss-${post.post_id}`, post.author_role);
 
         const body = document.createElement('div');
         body.className = 'ss-post-body';
@@ -97,6 +109,12 @@
         time.title = new Date(post.createdAt).toLocaleString();
         time.textContent = `· ${timeAgo(post.createdAt)}`;
         head.append(name);
+        if (ROLE_LABELS[post.author_role]) {
+            const role = document.createElement('span');
+            role.className = `ss-post-role is-${post.author_role}`;
+            role.textContent = ROLE_LABELS[post.author_role];
+            head.append(role);
+        }
         if (post.is_mine) {
             const you = document.createElement('span');
             you.className = 'ss-post-you';
@@ -145,17 +163,25 @@
             hasMore = true;
         }
         renderFeed();
+        const version = feedVersion;
         try {
             const query = { limit: PAGE_SIZE, viewer_email: viewerEmail() };
             if (!reset && posts.length) query.before = posts[posts.length - 1].createdAt;
-            const response = await fetch(apiUrl('/student-posts', query));
+            const response = await fetch(apiUrl(endpoint(), query));
             const result = await response.json();
+            if (version !== feedVersion) return;
             if (!result.success) throw new Error(result.message || 'Failed to load posts');
             posts = posts.concat(result.posts || []);
             hasMore = Boolean(result.has_more);
             loadedOnce = true;
         } catch (error) {
-            $('studentSpaceFeed').innerHTML = `<div class="ss-empty">Couldn’t load posts right now.</div>`;
+            if (version !== feedVersion) return;
+            const box = document.createElement('div');
+            box.className = 'ss-empty';
+            box.textContent = (error && error.message && error.message !== 'Failed to fetch')
+                ? error.message
+                : 'Couldn’t load posts right now.';
+            $('studentSpaceFeed').replaceChildren(box);
             loading = false;
             $('studentSpaceMore').textContent = '';
             return;
@@ -169,6 +195,29 @@
     }
 
     window.refreshStudentSpace = refreshFeed;
+
+    // ---------- space switcher (admin: Student Space / Teacher Space) ----------
+    function switchSpace(button) {
+        const tab = $('studentSpaceTab');
+        if (!tab || !button || button.getAttribute('aria-selected') === 'true') return;
+
+        document.querySelectorAll('#studentSpaceSwitch [data-endpoint]').forEach((btn) => {
+            btn.setAttribute('aria-selected', String(btn === button));
+        });
+        tab.dataset.endpoint = button.dataset.endpoint;
+        tab.classList.toggle('teacher-space', button.dataset.theme === 'teacher');
+        $('studentSpaceTitle').textContent = button.dataset.title || '';
+        const subtitle = document.querySelector('#studentSpaceTab .student-space-subtitle');
+        if (subtitle) subtitle.textContent = button.dataset.subtitle || '';
+        $('studentSpaceText').placeholder = button.dataset.placeholder || 'What’s happening?';
+        showError('');
+
+        feedVersion += 1;
+        loading = false;
+        loadedOnce = false;
+        $('studentSpaceScroller').scrollTop = 0;
+        refreshFeed();
+    }
 
     // ---------- composer ----------
     function updateComposerState() {
@@ -269,7 +318,7 @@
         updateComposerState();
 
         try {
-            const response = await fetch(apiUrl('/student-posts'), {
+            const response = await fetch(apiUrl(endpoint()), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, text, image: pendingImage })
@@ -305,6 +354,9 @@
         $('studentSpaceRemoveImage').addEventListener('click', removeImage);
         $('studentSpaceRefresh').addEventListener('click', refreshFeed);
         $('studentSpaceClose').addEventListener('click', window.closeStudentSpace);
+        document.querySelectorAll('#studentSpaceSwitch [data-endpoint]').forEach((button) => {
+            button.addEventListener('click', () => switchSpace(button));
+        });
 
         // Infinite scroll for older posts
         const scroller = $('studentSpaceScroller');
