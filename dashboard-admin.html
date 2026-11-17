@@ -298,6 +298,11 @@
                     <span class="personal-item-name">Snake Game</span>
                     <span class="personal-item-hint">Swipe or use arrows</span>
                 </button>
+                <button class="personal-item-btn" onclick="openRewardsItem()">
+                    <span class="personal-item-icon">🎁</span>
+                    <span class="personal-item-name">My Rewards</span>
+                    <span class="personal-item-hint">Your claimed rewards</span>
+                </button>
             </div>
 
             <div id="calendarPanel" class="personal-item-panel calendar-personal-item-panel hidden">
@@ -322,6 +327,16 @@
                         <button class="add-event-btn" onclick="openAddEventModal()">➕ Add Event</button>
                         <div id="eventsList" class="events-list"></div>
                     </div>
+                </div>
+            </div>
+
+            <div id="rewardsPanel" class="personal-item-panel hidden">
+                <div class="personal-panel-top">
+                    <button class="back-btn-calendar" onclick="showPersonalItemsMenu()">&#10094; Back to Items</button>
+                </div>
+                <h2 class="calendar-title">🎁 My Rewards</h2>
+                <div id="personalRewardsList" class="rewards-container personal-rewards-list">
+                    <p>Loading claimed rewards...</p>
                 </div>
             </div>
 
@@ -1201,13 +1216,13 @@
             document.getElementById('myRewardsModal').style.display = 'none';
         }
         
-        async function loadClaimedRewards() {
+        async function loadClaimedRewards(targetId = 'claimedRewardsList') {
             try {
                 const response = await fetch(`/get-claimed-rewards/${currentUserEmail}`);
                 const result = await response.json();
                 
                 if (result.success) {
-                    const claimedRewardsList = document.getElementById('claimedRewardsList');
+                    const claimedRewardsList = document.getElementById(targetId);
                     
                     if (result.claimed_rewards.length === 0) {
                         claimedRewardsList.innerHTML = '<p>You haven\'t claimed any rewards yet.</p>';
@@ -1235,11 +1250,11 @@
                         `).join('');
                     }
                 } else {
-                    document.getElementById('claimedRewardsList').innerHTML = '<p>Failed to load claimed rewards.</p>';
+                    document.getElementById(targetId).innerHTML = '<p>Failed to load claimed rewards.</p>';
                 }
             } catch (error) {
                 console.error('Error loading claimed rewards:', error);
-                document.getElementById('claimedRewardsList').innerHTML = '<p>Error loading claimed rewards.</p>';
+                document.getElementById(targetId).innerHTML = '<p>Error loading claimed rewards.</p>';
             }
         }
 
@@ -1420,6 +1435,8 @@
                 openAnalyticsItem();
             } else if (defaultItem === 'snake') {
                 openSnakeGame();
+            } else if (defaultItem === 'rewards') {
+                openRewardsItem();
             } else {
                 showPersonalItemsMenu();
             }
@@ -1445,6 +1462,7 @@
 
         function showPersonalItemsMenu() {
             activePersonalItem = 'menu';
+            document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(true);
             document.getElementById('personalItemsMenu').classList.remove('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
@@ -1457,6 +1475,7 @@
 
         function openCalendarItem() {
             activePersonalItem = 'calendar';
+            document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.remove('hidden');
@@ -1741,11 +1760,11 @@
                     <strong>${completedCount} / ${achievements.length + 1}</strong>
                 </div>
                 <div class="analytics-summary-card">
-                    <span class="analytics-summary-label">Progress Bubble</span>
+                    <span class="analytics-summary-label">Current goal</span>
                     <strong>${currentIndex === 'finish' ? 'A+' : currentIndex + 1}</strong>
                 </div>
                 <div class="analytics-summary-card">
-                    <span class="analytics-summary-label">Active Bubble</span>
+                    <span class="analytics-summary-label">Viewing</span>
                     <strong>${getRoadmapSelectedLabel(roadmapSelectedIndex)}</strong>
                 </div>
             `;
@@ -1755,7 +1774,7 @@
                     <div class="roadmap-track-line"></div>
                     <button
                         type="button"
-                        class="roadmap-finish-badge roadmap-drop-target ${finishChallenge.rewardClaimed ? 'completed' : (finishChallenge.achieved ? 'ready' : 'locked')} ${roadmapSelectedIndex === 'finish' ? 'selected' : ''}"
+                        class="roadmap-finish-badge roadmap-drop-target ${finishChallenge.rewardClaimed ? 'completed' : (finishChallenge.achieved ? 'ready' : 'locked')} ${roadmapSelectedIndex === 'finish' ? 'selected' : ''} ${currentIndex === 'finish' ? 'is-current' : ''}"
                         data-roadmap-target="finish"
                         onclick="selectRoadmapFinish()"
                         ondragover="handleRoadmapBubbleDragOver(event, 'finish')"
@@ -1764,11 +1783,13 @@
                         <span class="roadmap-bubble-icon">A+</span>
                         ${roadmapSelectedIndex === 'finish' ? getRoadmapAvatarMarkup() : ''}
                     </button>
+                    <span class="roadmap-finish-label">A+ Mastery · +${finishChallenge.rewardAmount} 🍌</span>
                     ${achievements.map((achievement, index) => `
                         <div class="roadmap-step ${index % 2 === 0 ? 'left' : 'right'}">
+                            <div class="roadmap-node-wrap">
                             <button
                                 type="button"
-                                class="roadmap-node roadmap-drop-target ${achievement.achieved ? 'completed' : 'locked'} ${index === roadmapSelectedIndex ? 'selected' : ''}"
+                                class="roadmap-node roadmap-drop-target ${achievement.achieved ? 'completed' : 'locked'} ${index === roadmapSelectedIndex ? 'selected' : ''} ${index === currentIndex ? 'is-current' : ''}"
                                 data-roadmap-target="${index}"
                                 onclick="selectRoadmapAchievement(${index})"
                                 ondragover="handleRoadmapBubbleDragOver(event, ${index})"
@@ -1778,9 +1799,12 @@
                                 <span class="roadmap-node-icon">${achievement.achieved ? '✓' : achievement.icon}</span>
                                 ${index === roadmapSelectedIndex ? getRoadmapAvatarMarkup() : ''}
                             </button>
+                                <span class="roadmap-node-label">${escapeHtml(achievement.title)}</span>
+                            </div>
                         </div>
                     `).join('')}
-                    <div class="roadmap-start-badge" aria-hidden="true">🙂</div>
+                    <div class="roadmap-start-badge" aria-hidden="true">🚩</div>
+                    <span class="roadmap-start-label">Start</span>
                 </div>
             `;
 
@@ -2006,6 +2030,7 @@
 
         function openAnalyticsItem() {
             activePersonalItem = 'analytics';
+            document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
@@ -2019,6 +2044,7 @@
 
         function openRoadmapItem() {
             activePersonalItem = 'roadmap';
+            document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
@@ -2030,8 +2056,24 @@
             loadRoadmap(true);
         }
 
+        function openRewardsItem() {
+            activePersonalItem = 'rewards';
+            updatePersonalItemsHeaderVisibility(false);
+            document.getElementById('personalItemsMenu').classList.add('hidden');
+            document.getElementById('calendarPanel').classList.add('hidden');
+            document.getElementById('roadmapPanel').classList.add('hidden');
+            document.getElementById('analyticsPanel').classList.add('hidden');
+            document.getElementById('snakePanel').classList.add('hidden');
+            document.getElementById('rewardsPanel').classList.remove('hidden');
+            closeDayDetail();
+            stopSnakeLoop();
+            document.getElementById('personalRewardsList').innerHTML = '<p>Loading claimed rewards...</p>';
+            loadClaimedRewards('personalRewardsList');
+        }
+
         function openSnakeGame() {
             activePersonalItem = 'snake';
+            document.getElementById('rewardsPanel').classList.add('hidden');
             updatePersonalItemsHeaderVisibility(false);
             document.getElementById('personalItemsMenu').classList.add('hidden');
             document.getElementById('calendarPanel').classList.add('hidden');
