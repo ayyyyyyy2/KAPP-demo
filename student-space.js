@@ -14,6 +14,7 @@
     let pendingImage = '';
     let posting = false;
     let feedVersion = 0; // bumped when switching between spaces, so stale responses are ignored
+    const openComments = new Set(); // post ids whose comment section is expanded
 
     const $ = (id) => document.getElementById(id);
     const endpoint = () => ($('studentSpaceTab') && $('studentSpaceTab').dataset.endpoint) || '/student-posts';
@@ -140,8 +141,233 @@
             body.append(img);
         }
 
+        body.append(renderActions(post), renderComments(post));
+
         article.append(avatar, body);
+        attachDoubleTap(article, post);
         return article;
+    }
+
+    // ---------- likes ----------
+    function renderActions(post) {
+        const bar = document.createElement('div');
+        bar.className = 'ss-actions';
+
+        const like = document.createElement('button');
+        like.type = 'button';
+        like.className = 'ss-action-btn ss-like-btn';
+        like.addEventListener('click', () => toggleLike(post));
+
+        const comment = document.createElement('button');
+        comment.type = 'button';
+        comment.className = 'ss-action-btn ss-comment-btn';
+        comment.addEventListener('click', () => toggleComments(post));
+
+        bar.append(like, comment);
+        updateActions(bar, post);
+        return bar;
+    }
+
+    function updateActions(bar, post) {
+        const like = bar.querySelector('.ss-like-btn');
+        const liked = Boolean(post.liked_by_me);
+        like.classList.toggle('is-liked', liked);
+        like.setAttribute('aria-pressed', String(liked));
+        like.setAttribute('aria-label', liked ? 'Unlike' : 'Like');
+        like.innerHTML = `<span class="ss-heart" aria-hidden="true">${liked ? '❤️' : '🤍'}</span><span class="ss-count">${post.like_count || ''}</span>`;
+
+        const comment = bar.querySelector('.ss-comment-btn');
+        const count = (post.comments || []).length;
+        comment.setAttribute('aria-expanded', String(openComments.has(post.post_id)));
+        comment.setAttribute('aria-label', 'Comments');
+        comment.innerHTML = `<span aria-hidden="true">💬</span><span class="ss-count">${count || ''}</span>`;
+    }
+
+    function findArticle(postId) {
+        return document.querySelector(`#studentSpaceFeed .ss-post[data-post-id="${CSS.escape(postId)}"]`);
+    }
+
+    function refreshActions(post) {
+        const article = findArticle(post.post_id);
+        const bar = article && article.querySelector('.ss-actions');
+        if (bar) updateActions(bar, post);
+    }
+
+    async function toggleLike(post, forceLike = false) {
+        const wantLiked = forceLike ? true : !post.liked_by_me;
+        if (wantLiked === Boolean(post.liked_by_me)) return;
+
+        // Optimistic update
+        post.liked_by_me = wantLiked;
+        post.like_count = Math.max(0, (post.like_count || 0) + (wantLiked ? 1 : -1));
+        refreshActions(post);
+        const heart = findArticle(post.post_id)?.querySelector('.ss-like-btn .ss-heart');
+        if (wantLiked && heart && heart.animate) {
+            heart.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.45)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'ease-out' });
+        }
+
+        try {
+            const response = await fetch(apiUrl(`${endpoint()}/${encodeURIComponent(post.post_id)}/like`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: viewerEmail(), liked: wantLiked })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            post.liked_by_me = result.liked;
+            post.like_count = result.like_count;
+        } catch (_) {
+            post.liked_by_me = !wantLiked;
+            post.like_count = Math.max(0, (post.like_count || 0) + (wantLiked ? -1 : 1));
+        }
+        refreshActions(post);
+    }
+
+    // Double tap (or double click) anywhere on the post = like, with a big heart
+    function attachDoubleTap(article, post) {
+        let lastTap = 0;
+        let lastX = 0;
+        let lastY = 0;
+        article.addEventListener('pointerup', (event) => {
+            if (event.target.closest('button, input, textarea, a, label, .ss-comments')) return;
+            const now = Date.now();
+            const near = Math.abs(event.clientX - lastX) < 30 && Math.abs(event.clientY - lastY) < 30;
+            if (now - lastTap < 320 && near) {
+                lastTap = 0;
+                showHeartBurst(article, event.clientX, event.clientY);
+                toggleLike(post, true);
+                return;
+            }
+            lastTap = now;
+            lastX = event.clientX;
+            lastY = event.clientY;
+        });
+    }
+
+    function showHeartBurst(article, x, y) {
+        const rect = article.getBoundingClientRect();
+        const heart = document.createElement('span');
+        heart.className = 'ss-heart-burst';
+        heart.textContent = '❤️';
+        heart.style.left = `${x - rect.left}px`;
+        heart.style.top = `${y - rect.top}px`;
+        article.append(heart);
+        const animation = heart.animate([
+            { transform: 'translate(-50%, -50%) scale(0.2)', opacity: 0 },
+            { transform: 'translate(-50%, -50%) scale(1.25)', opacity: 1, offset: 0.25 },
+            { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.6 },
+            { transform: 'translate(-50%, -90%) scale(0.9)', opacity: 0 }
+        ], { duration: 800, easing: 'ease-out' });
+        animation.onfinish = () => heart.remove();
+    }
+
+    // ---------- comments ----------
+    function renderComment(comment) {
+        const item = document.createElement('div');
+        item.className = 'ss-comment' + (comment.is_mine ? ' is-mine' : '');
+
+        const avatar = document.createElement('div');
+        avatar.className = 'ss-avatar ss-avatar-sm';
+        avatar.innerHTML = avatarMarkup(comment.author_avatar, `ssc-${comment.comment_id}`, comment.author_role);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'ss-comment-bubble';
+        const head = document.createElement('div');
+        head.className = 'ss-comment-head';
+        const name = document.createElement('strong');
+        name.textContent = comment.author_name || 'User';
+        head.append(name);
+        if (ROLE_LABELS[comment.author_role]) {
+            const role = document.createElement('span');
+            role.className = `ss-post-role is-${comment.author_role}`;
+            role.textContent = ROLE_LABELS[comment.author_role];
+            head.append(role);
+        }
+        const time = document.createElement('time');
+        time.className = 'ss-post-time';
+        time.dateTime = comment.createdAt;
+        time.textContent = `· ${timeAgo(comment.createdAt)}`;
+        head.append(time);
+        const text = document.createElement('p');
+        text.className = 'ss-comment-text';
+        text.textContent = comment.text;
+        bubble.append(head, text);
+
+        item.append(avatar, bubble);
+        return item;
+    }
+
+    function renderComments(post) {
+        const section = document.createElement('div');
+        section.className = 'ss-comments';
+        section.hidden = !openComments.has(post.post_id);
+
+        const list = document.createElement('div');
+        list.className = 'ss-comment-list';
+        (post.comments || []).forEach((comment) => list.append(renderComment(comment)));
+
+        const form = document.createElement('form');
+        form.className = 'ss-comment-form';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 500;
+        input.placeholder = 'Write a comment…';
+        input.setAttribute('aria-label', 'Write a comment');
+        const send = document.createElement('button');
+        send.type = 'submit';
+        send.className = 'ss-comment-send';
+        send.textContent = 'Send';
+        const error = document.createElement('p');
+        error.className = 'ss-error';
+        error.hidden = true;
+        form.append(input, send);
+        form.addEventListener('submit', (event) => submitComment(event, post, input, send, error, list));
+
+        section.append(list, form, error);
+        return section;
+    }
+
+    function toggleComments(post) {
+        const article = findArticle(post.post_id);
+        if (!article) return;
+        const section = article.querySelector('.ss-comments');
+        const open = section.hidden;
+        section.hidden = !open;
+        if (open) {
+            openComments.add(post.post_id);
+            section.querySelector('input').focus({ preventScroll: true });
+        } else {
+            openComments.delete(post.post_id);
+        }
+        refreshActions(post);
+    }
+
+    async function submitComment(event, post, input, send, error, list) {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text || send.disabled) return;
+        send.disabled = true;
+        error.hidden = true;
+        try {
+            const response = await fetch(apiUrl(`${endpoint()}/${encodeURIComponent(post.post_id)}/comments`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: viewerEmail(), text })
+            });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message || 'Failed to add comment');
+            post.comments = (post.comments || []).concat(result.comment);
+            const item = renderComment(result.comment);
+            list.append(item);
+            if (item.animate) item.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 250 });
+            input.value = '';
+            refreshActions(post);
+        } catch (err) {
+            error.textContent = err.message || 'Failed to add comment.';
+            error.hidden = false;
+        } finally {
+            send.disabled = false;
+        }
     }
 
     function renderFeed() {
@@ -213,6 +439,7 @@
         showError('');
 
         feedVersion += 1;
+        openComments.clear();
         loading = false;
         loadedOnce = false;
         $('studentSpaceScroller').scrollTop = 0;

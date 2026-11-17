@@ -4506,3 +4506,154 @@ input, textarea, select, [contenteditable="true"] {
         radial-gradient(circle at 80% 95%, rgba(239, 154, 154, 0.3) 0%, rgba(239, 154, 154, 0) 40%),
         linear-gradient(180deg, #f6f1ea 0%, #ece6f5 100%);
 }
+
+/* ---- Space posts: likes, double-tap heart, comments ---- */
+.ss-post {
+    position: relative;
+    touch-action: manipulation; /* no double-tap zoom, so double tap = like */
+}
+
+.ss-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ss-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 3px 8px rgba(26, 35, 126, 0.06);
+    color: #1a237e;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.ss-action-btn .ss-count:empty {
+    display: none;
+}
+
+.ss-like-btn.is-liked {
+    background: rgba(255, 205, 210, 0.7);
+    border-color: rgba(239, 83, 80, 0.45);
+    color: #c62828;
+}
+
+.ss-heart {
+    display: inline-block;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.ss-heart-burst {
+    position: absolute;
+    z-index: 3;
+    font-size: 84px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 16px rgba(198, 40, 40, 0.35));
+}
+
+.ss-comments {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(26, 35, 126, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ss-comments[hidden] {
+    display: none;
+}
+
+.ss-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ss-comment {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.ss-avatar.ss-avatar-sm {
+    width: 30px;
+    height: 30px;
+    border-width: 1.5px;
+}
+
+.ss-comment-bubble {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+}
+
+.ss-comment.is-mine .ss-comment-bubble {
+    background: rgba(255, 236, 153, 0.55);
+}
+
+.ss-comment-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #1a237e;
+    font-size: 13px;
+}
+
+.ss-comment-text {
+    margin: 2px 0 0;
+    color: #1a1f4d;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ss-comment-form {
+    display: flex;
+    gap: 8px;
+}
+
+.ss-comment-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.75);
+    color: #1a237e;
+    font: inherit;
+    font-size: 16px; /* 16px stops iOS from zooming into the field */
+    outline: none;
+}
+
+.ss-comment-form input:focus {
+    border-color: rgba(92, 107, 192, 0.6);
+}
+
+.ss-comment-send {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, #ffe082 0%, #ffb300 100%);
+    color: #1a237e;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.ss-comment-send:disabled {
+    opacity: 0.6;
+}

@@ -1210,6 +1210,24 @@ const wallPostSchema = new mongoose.Schema({
     text: { type: String, default: '', maxlength: 1000 },
     // Image is resized/compressed in the browser and stored as a data URL
     image: { type: String, default: '' },
+    likes: { type: [String], default: [] }, // emails of users who liked the post
+    comments: {
+        type: [{
+            comment_id: { type: String, required: true },
+            author_email: { type: String, required: true },
+            author_name: { type: String, default: '' },
+            author_role: { type: String, default: 'user' },
+            author_avatar: {
+                hat: { type: String, default: 'none' },
+                shirt: { type: String, default: 'default' },
+                hairStyle: { type: String, default: 'none' },
+                hairColor: { type: String, default: '#000000' }
+            },
+            text: { type: String, default: '', maxlength: 500 },
+            createdAt: { type: Date, default: Date.now }
+        }],
+        default: []
+    },
     createdAt: { type: Date, default: Date.now, index: true }
 });
 const StudentPost = mongoose.models.StudentPost || mongoose.model('StudentPost', wallPostSchema, 'student_posts');
@@ -1218,6 +1236,7 @@ const TeacherPost = mongoose.models.TeacherPost || mongoose.model('TeacherPost',
 const WALL_POST_MAX_TEXT = 1000;
 const WALL_POST_MAX_IMAGE_CHARS = 1.5 * 1024 * 1024; // ~1.1 MB of JPEG
 const WALL_POST_IMAGE_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const WALL_COMMENT_MAX_TEXT = 500;
 
 function serializeWallPost(post, viewerEmail) {
     return {
@@ -1228,7 +1247,22 @@ function serializeWallPost(post, viewerEmail) {
         text: post.text || '',
         image: post.image || '',
         createdAt: post.createdAt,
-        is_mine: Boolean(viewerEmail) && post.author_email === viewerEmail
+        is_mine: Boolean(viewerEmail) && post.author_email === viewerEmail,
+        like_count: (post.likes || []).length,
+        liked_by_me: Boolean(viewerEmail) && (post.likes || []).includes(viewerEmail),
+        comments: (post.comments || []).map((comment) => serializeWallComment(comment, viewerEmail))
+    };
+}
+
+function serializeWallComment(comment, viewerEmail) {
+    return {
+        comment_id: comment.comment_id,
+        author_name: comment.author_name || 'User',
+        author_role: comment.author_role || 'user',
+        author_avatar: comment.author_avatar || {},
+        text: comment.text || '',
+        createdAt: comment.createdAt,
+        is_mine: Boolean(viewerEmail) && comment.author_email === viewerEmail
     };
 }
 
@@ -1267,6 +1301,68 @@ function registerPostWall({ route, Model, name, readRoles, writeRoles }) {
         } catch (error) {
             console.error(`Get ${name} posts error:`, error);
             res.status(500).json({ success: false, message: 'Failed to load posts' });
+        }
+    });
+
+    // Shared check for likes/comments: the user must be allowed to post on this wall
+    async function findWallMember(email) {
+        if (!email) return { error: [400, 'Please log in again.'] };
+        const user = await User.findOne({ email }).select('name email role avatar').lean();
+        if (!user) return { error: [404, 'User not found.'] };
+        if (!writeRoles.includes(user.role)) return { error: [403, `Your account can’t interact in ${name}.`] };
+        return { user };
+    }
+
+    // Like / unlike: { email, liked: true|false }
+    app.post(`${route}/:postId/like`, async (req, res) => {
+        try {
+            const email = String(req.body.email || '').trim().toLowerCase();
+            const { user, error } = await findWallMember(email);
+            if (error) return res.status(error[0]).json({ success: false, message: error[1] });
+
+            const liked = req.body.liked !== false;
+            const post = await Model.findOneAndUpdate(
+                { post_id: String(req.params.postId) },
+                liked ? { $addToSet: { likes: user.email } } : { $pull: { likes: user.email } },
+                { new: true, projection: { likes: 1 } }
+            ).lean();
+            if (!post) return res.status(404).json({ success: false, message: 'Post not found.' });
+
+            res.json({ success: true, liked: (post.likes || []).includes(user.email), like_count: (post.likes || []).length });
+        } catch (err) {
+            console.error(`Like ${name} post error:`, err);
+            res.status(500).json({ success: false, message: 'Failed to update like' });
+        }
+    });
+
+    // Add a comment: { email, text }
+    app.post(`${route}/:postId/comments`, async (req, res) => {
+        try {
+            const email = String(req.body.email || '').trim().toLowerCase();
+            const text = String(req.body.text || '').trim();
+            if (!text) return res.status(400).json({ success: false, message: 'Write a comment first.' });
+            if (text.length > WALL_COMMENT_MAX_TEXT) {
+                return res.status(400).json({ success: false, message: `Comments can have up to ${WALL_COMMENT_MAX_TEXT} characters.` });
+            }
+            const { user, error } = await findWallMember(email);
+            if (error) return res.status(error[0]).json({ success: false, message: error[1] });
+
+            const comment = {
+                comment_id: crypto.randomUUID(),
+                author_email: user.email,
+                author_name: user.name || 'User',
+                author_role: user.role || 'user',
+                author_avatar: user.avatar || {},
+                text,
+                createdAt: new Date()
+            };
+            const result = await Model.updateOne({ post_id: String(req.params.postId) }, { $push: { comments: comment } });
+            if (!result.matchedCount) return res.status(404).json({ success: false, message: 'Post not found.' });
+
+            res.json({ success: true, comment: serializeWallComment(comment, user.email) });
+        } catch (err) {
+            console.error(`Comment ${name} post error:`, err);
+            res.status(500).json({ success: false, message: 'Failed to add comment' });
         }
     });
 
