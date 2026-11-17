@@ -386,6 +386,7 @@
     </div>
     
     <script src="avatar.js"></script>
+    <script src="banana-burst.js"></script>
     <script src="personal-items-swipe.js"></script>
     <script>
         let currentUserEmail = '';
@@ -923,7 +924,11 @@
         }
 
         function updateDisplayedPoints(newPoints) {
-            document.getElementById('pointCount').textContent = newPoints;
+            if (typeof animatePointsChange === 'function') {
+                animatePointsChange(newPoints);
+            } else {
+                document.getElementById('pointCount').textContent = newPoints;
+            }
             try {
                 const storedData = sessionStorage.getItem('userData');
                 if (storedData) {

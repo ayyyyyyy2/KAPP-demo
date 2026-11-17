@@ -441,6 +441,7 @@
     </div>
     
     <script src="avatar.js"></script>
+    <script src="banana-burst.js"></script>
     <script src="personal-items-swipe.js"></script>
     <script>
         let currentUserEmail = '';
@@ -886,7 +887,11 @@
         }
 
         function updateDisplayedPoints(newPoints) {
-            document.getElementById('pointCount').textContent = newPoints;
+            if (typeof animatePointsChange === 'function') {
+                animatePointsChange(newPoints);
+            } else {
+                document.getElementById('pointCount').textContent = newPoints;
+            }
             try {
                 const storedData = sessionStorage.getItem('userData');
                 if (storedData) {
@@ -911,15 +916,18 @@
                 return;
             }
 
-            leaderboardElement.innerHTML = users.map((user, index) => `
-                <div class="student-leaderboard-item">
+            leaderboardElement.innerHTML = users.map((user, index) => {
+                const isViewer = String(user.email || '').trim().toLowerCase() === viewerEmail && viewerEmail !== '';
+                return `
+                <div class="student-leaderboard-item is-rank-${index + 1}${isViewer ? ' is-you' : ''}">
                     <div class="student-leaderboard-user">
-                        <span class="student-leaderboard-rank">#${index + 1}</span>
-                        <strong class="student-leaderboard-name">${escapeHtml(String(user.email || '').trim().toLowerCase() === viewerEmail ? 'You' : (user.name || user.email || 'Student'))}</strong>
+                        <span class="student-leaderboard-rank">${index + 1}</span>
+                        <strong class="student-leaderboard-name">${escapeHtml(isViewer ? 'You' : (user.name || user.email || 'Student'))}</strong>
                     </div>
                     <strong class="student-leaderboard-points">${escapeHtml(String(user.points ?? 0))} 🍌</strong>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function normalizeStudentLeaderboardUsers(users = []) {

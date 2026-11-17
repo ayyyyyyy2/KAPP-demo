@@ -3359,3 +3359,32 @@ input, textarea, select, [contenteditable="true"] {
     width: min(280px, 72vw);
     height: min(280px, 72vw);
 }
+
+/* ---- Bananas jumping into the points counter (banana-burst.js) ---- */
+.flying-banana {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 5000;
+    font-size: 30px;
+    line-height: 1;
+    pointer-events: none;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.18));
+}
+
+.banana-gain-label {
+    position: fixed;
+    z-index: 5001;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 236, 153, 0.92);
+    border: 1px solid rgba(255, 213, 79, 1);
+    box-shadow: 0 8px 18px rgba(26, 35, 126, 0.18);
+    color: #1a237e;
+    font-weight: 800;
+    font-size: 15px;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(-50%, 0);
+}
