@@ -3411,49 +3411,16 @@ input, textarea, select, [contenteditable="true"] {
     height: min(280px, 72vw);
 }
 
-/* ---- Leaderboard: liquid glass ---- */
+/* ---- Leaderboard: transparent ---- */
 .welcome-container .student-leaderboard-card {
     position: relative;
-    overflow: hidden;
-    isolation: isolate;
     padding: 18px 16px 16px;
     border-radius: 28px;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.28) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    box-shadow:
-        inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
-        inset 0 -1px 0 rgba(26, 35, 126, 0.08),
-        0 22px 44px rgba(26, 35, 126, 0.14),
-        0 2px 6px rgba(26, 35, 126, 0.06);
-    backdrop-filter: blur(22px) saturate(180%);
-    -webkit-backdrop-filter: blur(22px) saturate(180%);
-}
-
-/* Soft colour blobs the glass refracts */
-.welcome-container .student-leaderboard-card::before {
-    content: '';
-    position: absolute;
-    inset: -40%;
-    z-index: -1;
-    background:
-        radial-gradient(circle at 18% 22%, rgba(255, 202, 40, 0.35) 0%, rgba(255, 202, 40, 0) 34%),
-        radial-gradient(circle at 85% 30%, rgba(92, 107, 192, 0.28) 0%, rgba(92, 107, 192, 0) 36%),
-        radial-gradient(circle at 60% 88%, rgba(255, 138, 101, 0.22) 0%, rgba(255, 138, 101, 0) 34%);
-    filter: blur(18px);
-    pointer-events: none;
-}
-
-/* Specular highlight across the top */
-.welcome-container .student-leaderboard-card::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: 50%;
-    z-index: -1;
-    background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
+    background: transparent;
+    border: 1px solid rgba(26, 35, 126, 0.1);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .welcome-container .student-leaderboard-header {
@@ -3473,12 +3440,10 @@ input, textarea, select, [contenteditable="true"] {
 
 .welcome-container .student-leaderboard-badge {
     padding: 7px 12px;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 10px rgba(26, 35, 126, 0.08);
+    background: transparent;
+    border: 1px solid rgba(26, 35, 126, 0.18);
+    box-shadow: none;
     color: #1a237e;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
 }
 
 .welcome-container .student-leaderboard-list {
@@ -3488,27 +3453,20 @@ input, textarea, select, [contenteditable="true"] {
 .welcome-container .student-leaderboard-item {
     padding: 10px 12px 10px 10px;
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.38) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 1),
-        inset 0 -1px 0 rgba(26, 35, 126, 0.05),
-        0 6px 16px rgba(26, 35, 126, 0.08);
-    backdrop-filter: blur(14px) saturate(160%);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(26, 35, 126, 0.1);
+    box-shadow: none;
+    transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .welcome-container .student-leaderboard-item:hover {
     transform: translateY(-1px);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 1),
-        0 10px 22px rgba(26, 35, 126, 0.12);
+    background: rgba(255, 255, 255, 0.22);
 }
 
 .welcome-container .student-leaderboard-item.is-you {
-    background: linear-gradient(180deg, rgba(255, 236, 153, 0.75) 0%, rgba(255, 213, 79, 0.35) 100%);
-    border-color: rgba(255, 213, 79, 0.95);
+    background: rgba(255, 213, 79, 0.16);
+    border-color: rgba(255, 179, 0, 0.55);
 }
 
 /* Glossy medal badges */
@@ -3543,17 +3501,17 @@ input, textarea, select, [contenteditable="true"] {
 .welcome-container .student-leaderboard-points {
     padding: 5px 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.95);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1);
+    background: transparent;
+    border: 1px solid rgba(26, 35, 126, 0.12);
+    box-shadow: none;
     color: #1a237e;
     font-size: 14px;
 }
 
 .welcome-container .student-leaderboard-empty {
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.9);
+    background: transparent;
+    border: 1px solid rgba(26, 35, 126, 0.1);
     color: rgba(26, 35, 126, 0.7);
 }
 
@@ -4842,4 +4800,25 @@ input, textarea, select, [contenteditable="true"] {
 .student-space-tab,
 .student-space-tab * {
     touch-action: manipulation;
+}
+
+/* ---- Personal Items: clip-art icons ---- */
+.personal-item-art {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 6px rgba(26, 35, 126, 0.15));
+}
+
+/* ---- Space posts: drawn SVG heart ---- */
+.ss-heart svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.ss-heart-burst svg {
+    display: block;
+    width: 84px;
+    height: 84px;
 }

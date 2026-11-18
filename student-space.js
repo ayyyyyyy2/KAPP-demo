@@ -168,13 +168,19 @@
         return bar;
     }
 
+    function heartSvg(filled) {
+        const fill = filled ? '#ef5350' : '#ffffff';
+        const shine = filled ? '<path d="M8.5 7.5c-1.6 0.3-2.7 1.6-2.9 3.2" fill="none" stroke="#ffcdd2" stroke-width="1.8" stroke-linecap="round"/>' : '';
+        return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-8.5-5.2-8.5-11.2C3.5 6.4 5.7 4 8.4 4c1.6 0 2.9.8 3.6 2 .7-1.2 2-2 3.6-2 2.7 0 4.9 2.4 4.9 5.3 0 6-8.5 11.2-8.5 11.2z" fill="${fill}" stroke="#1a237e" stroke-width="1.8" stroke-linejoin="round"/>${shine}</svg>`;
+    }
+
     function updateActions(bar, post) {
         const like = bar.querySelector('.ss-like-btn');
         const liked = Boolean(post.liked_by_me);
         like.classList.toggle('is-liked', liked);
         like.setAttribute('aria-pressed', String(liked));
         like.setAttribute('aria-label', liked ? 'Unlike' : 'Like');
-        like.innerHTML = `<span class="ss-heart" aria-hidden="true">${liked ? '❤️' : '🤍'}</span><span class="ss-count">${post.like_count || ''}</span>`;
+        like.innerHTML = `<span class="ss-heart" aria-hidden="true">${heartSvg(liked)}</span><span class="ss-count">${post.like_count || ''}</span>`;
 
         const comment = bar.querySelector('.ss-comment-btn');
         const count = (post.comments || []).length;
@@ -260,7 +266,7 @@
         const rect = article.getBoundingClientRect();
         const heart = document.createElement('span');
         heart.className = 'ss-heart-burst';
-        heart.textContent = '❤️';
+        heart.innerHTML = heartSvg(true);
         heart.style.left = `${x - rect.left}px`;
         heart.style.top = `${y - rect.top}px`;
         article.append(heart);

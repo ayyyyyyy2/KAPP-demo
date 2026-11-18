@@ -4920,3 +4920,24 @@ input, textarea, select, [contenteditable="true"] {
 .student-space-tab * {
     touch-action: manipulation;
 }
+
+/* ---- Personal Items: clip-art icons ---- */
+.personal-item-art {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 6px rgba(26, 35, 126, 0.15));
+}
+
+/* ---- Space posts: drawn SVG heart ---- */
+.ss-heart svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.ss-heart-burst svg {
+    display: block;
+    width: 84px;
+    height: 84px;
+}
